@@ -1,5 +1,5 @@
 #include"SimCase.hpp"
-#include"general_tools.h"
+//#include"general_tools.h"
 
 
 SimCase::SimCase(void){
@@ -68,16 +68,29 @@ void SimCase::InitSim(){
 
     grid_->Read(simdata_.mesh_fname);
 
+    grid_->generate_meshData();
+
     std::string write_fname__;
 
-    write_fname__="gridtest.out";
+    write_fname__="./post_process/gridtest.out";
 
     grid_->WriteMesh(write_fname__);
+
+    grid_data_ = grid_->Release_meshData();
+
+    if(grid_!=NULL){
+        delete grid_;
+        grid_=NULL;
+    }
 
     return;
 }
 
+
 void SimCase::RunSim(){
+
+
+
     return;
 }
 

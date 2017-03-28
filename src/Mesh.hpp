@@ -1,5 +1,5 @@
 #include"MeshData.h"
-#include "general_tools.h"
+//#include "general_tools.h"
 
 class Mesh{
 
@@ -12,7 +12,7 @@ class Mesh{
     void WriteMesh(std::string& write_fname_);
     void generate_meshData();
 
-    MeshData* ReleaseMeshData(void);
+    MeshData* Release_meshData(void);
 
 protected:
     void Initialize();
@@ -20,6 +20,6 @@ protected:
 
 
 protected:
-    MeshData *_grid_data_=NULL;
+    MeshData *grid_data_=NULL;
 
 };
