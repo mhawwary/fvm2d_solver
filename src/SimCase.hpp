@@ -1,3 +1,6 @@
+#ifndef SIMCASE_H
+#define SIMCASE_H
+
 #include"Mesh.hpp"
 //#include"MeshData.h"
 #include"general_tools.h"
@@ -30,3 +33,5 @@ protected:
 
 
 };
+
+#endif

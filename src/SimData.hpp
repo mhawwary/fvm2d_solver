@@ -1,3 +1,5 @@
+#ifndef SIMDATA_H
+#define SIMDATA_H
 
 #include"../include/getpot.h"
 
@@ -25,3 +27,5 @@ struct SimData {
     void Parse(const std::string &fname);
 
 };
+
+#endif

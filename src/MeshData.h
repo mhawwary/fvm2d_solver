@@ -1,3 +1,6 @@
+#ifndef MESHDATA_H
+#define MESHDATA_H
+
 #include "general_tools.h"
 
 struct Face{
@@ -114,6 +117,13 @@ struct BoundFace: Face{
 
 struct Elem{
 
+    ~Elem(){
+
+        emptyarray(nID);
+        emptyarray(fID);
+        emptyarray(neigh_eID);
+    }
+
     bool isbound=false;  // true if it is a boundary elem
 
     int ID=0;   // Elem ID
@@ -147,6 +157,22 @@ struct GhostElem{
 
 struct MeshData{
 
+    ~MeshData(){
+        emptyarray(elemlist);
+        emptyarray(facelist);
+
+        emptyarray(int_elemlist);
+        emptyarray(int_facelist);
+
+        emptyarray(bnd_elemlist);
+        emptyarray(bnd_facelist);
+
+        emptyarray(Xn);
+        emptyarray(Yn);
+
+        emptyarray(gh_elemlist);
+    }
+
     int Nnodes=0;
     int Nfaces=0;
     int Nelem =0;
@@ -162,8 +188,8 @@ struct MeshData{
     double *Xn=nullptr; // node x coord
     double *Yn=nullptr; // node y coord
 
-    Face *dummy_facelist=nullptr;
-    Elem *dummy_elemlist=nullptr;
+    Face *facelist=nullptr;
+    Elem *elemlist=nullptr;
 
     Face *int_facelist=nullptr;  // array of faces
     Elem *int_elemlist=nullptr;  // array of elements
@@ -174,14 +200,19 @@ struct MeshData{
     GhostElem *gh_elemlist=nullptr;
 
     std::map <int, int> elem_gid_to_bid;  // map from global ID to bound ID
-    std::map <int, int> elem_gid_to_intid;  // map from global ID to interior ID
+    std::map <int, int> elem_gid_to_intId;  // map from global ID to interior ID
+
+    std::map <int, int> face_gid_to_bid;  // map from global ID to bound ID
+    std::map <int, int> face_gid_to_intId;  // map from global ID to interior ID
 
     void Reset_dummy(){
 
-        emptyarray(dummy_facelist);
-        emptyarray(dummy_elemlist);
+        emptyarray(facelist);
+        emptyarray(elemlist);
 
     }
 
 };
+
+#endif
 

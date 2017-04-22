@@ -4,9 +4,15 @@
 
 SimCase::SimCase(void){
 
+    emptyarray(grid_);
+    emptyarray(grid_data_);
+
 }
 
 SimCase::~SimCase(void){
+
+    emptyarray(grid_);
+    emptyarray(grid_data_);
 
 }
 

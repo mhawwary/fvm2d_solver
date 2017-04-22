@@ -93,6 +93,6 @@ $(OBJ)Mesh.o:   Mesh.hpp Mesh.cpp
 
 clean:
 	rm -f ./$(OBJ)*.o ./$(BIN)*.exe 
-	#rm -rf ./post_process/ 
+	rm -rf ./post_process/ 
 	@echo  removing all object and executable files
 

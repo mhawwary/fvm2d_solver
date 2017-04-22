@@ -1,3 +1,6 @@
+#ifndef MESH_H
+#define MESH_H
+
 #include"MeshData.h"
 //#include "general_tools.h"
 
@@ -18,8 +21,14 @@ protected:
     void Initialize();
     void Reset();
 
+    void compute_faceData();
+    void compute_elemData();
+    void compute_nodeData();
+
 
 protected:
     MeshData *grid_data_=NULL;
 
 };
+
+#endif
