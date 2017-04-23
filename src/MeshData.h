@@ -7,7 +7,7 @@ struct Face{
 
     int ID=0;
 
-    //bool isbound=false;  // // true if it is a boundary face
+    bool isbound=false;  // // true if it is a boundary face
 
     int v0=0;
     int v1=1;
@@ -23,7 +23,9 @@ struct Face{
 
     double Af=1;  // face area
 
-//    Face& copy_face(const Face& RFace){
+    int bnd_type=0; // 0:interior , -1: Wall , -2: FarFeild
+
+/*    Face& copy_face(const Face& RFace){
 
 //        ID = RFace.ID;
 
@@ -40,7 +42,7 @@ struct Face{
 
 //        nx = RFace.nx;
 //        ny = RFace.ny;
-//    }
+//    } */
 
     virtual Face& operator =(const Face& RFace){
 
@@ -59,6 +61,8 @@ struct Face{
 
         nx = RFace.nx;
         ny = RFace.ny;
+
+        bnd_type = RFace.bnd_type;
 
         return *this;
 
@@ -119,20 +123,24 @@ struct Elem{
 
     ~Elem(){
 
-        emptyarray(nID);
-        emptyarray(fID);
+        emptyarray(to_face);
+        emptyarray(to_node);
         emptyarray(neigh_eID);
     }
 
     bool isbound=false;  // true if it is a boundary elem
+     int bnd_type=0; // 0:interior , -1: Wall , -2: FarFeild
 
     int ID=0;   // Elem ID
 
     int Nn=4;  // no. of nodes
     int Nf=4;  // no. of faces
 
-    int *nID=nullptr;   // node ID
-    int *fID=nullptr;   // face ID
+    int *to_node=nullptr;   // elem_to_node list
+    int *to_face=nullptr;   // elem_to_face list
+
+    int n_local_faces = 4; // no. of elem faces
+    int n_local_nodes = 4; // no. of elem nodes
 
     int *neigh_eID=nullptr; // neighbour elements ID
 
@@ -154,10 +162,10 @@ struct GhostElem{
 
 };
 
-
 struct MeshData{
 
     ~MeshData(){
+
         emptyarray(elemlist);
         emptyarray(facelist);
 
@@ -185,6 +193,10 @@ struct MeshData{
     int Nintfaces=0;
     int NintNodes=0;
 
+    int NtriElem=0;
+    int NquadElem=0;
+    int Npolygon=0;
+
     double *Xn=nullptr; // node x coord
     double *Yn=nullptr; // node y coord
 
@@ -204,13 +216,6 @@ struct MeshData{
 
     std::map <int, int> face_gid_to_bid;  // map from global ID to bound ID
     std::map <int, int> face_gid_to_intId;  // map from global ID to interior ID
-
-    void Reset_dummy(){
-
-        emptyarray(facelist);
-        emptyarray(elemlist);
-
-    }
 
 };
 

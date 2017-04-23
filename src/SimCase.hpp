@@ -25,8 +25,8 @@ protected:
 protected:
   std::string input_fname;  // input file name
   SimData simdata_ ;
-  Mesh     *grid_=NULL;
-  MeshData *grid_data_=NULL;
+  Mesh     *grid_=nullptr;
+  MeshData *grid_data_=nullptr;
   //int simIter = 0;
   //double sim_phy_time=0.0;
   //double sim_dt=0.0;

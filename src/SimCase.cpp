@@ -3,17 +3,13 @@
 
 
 SimCase::SimCase(void){
-
-    emptyarray(grid_);
-    emptyarray(grid_data_);
-
+    emptypointer(grid_);
+    emptypointer(grid_data_);
 }
 
 SimCase::~SimCase(void){
-
-    emptyarray(grid_);
-    emptyarray(grid_data_);
-
+    emptypointer(grid_);
+    emptypointer(grid_data_);
 }
 
 void SimCase::setup(const std::string &input_fname_){
@@ -65,11 +61,6 @@ void SimCase::setup(const std::string &input_fname_){
 
 void SimCase::InitSim(){
 
-    if(grid_!=NULL){
-        delete grid_;
-        grid_=NULL;
-    }
-
     grid_ = new Mesh;
 
     grid_->Read(simdata_.mesh_fname);
@@ -84,10 +75,7 @@ void SimCase::InitSim(){
 
     grid_data_ = grid_->Release_meshData();
 
-    if(grid_!=NULL){
-        delete grid_;
-        grid_=NULL;
-    }
+    emptypointer(grid_);
 
     return;
 }

@@ -21,8 +21,12 @@
 
 #include<cstring>
 
+#include <set>
+
 #include"../include/error.h"
 
+template<typename ptr_>    // free 1D pointer
+void emptypointer(ptr_*& A);
 
 template<typename ptr_1D>
 void emptyarray(ptr_1D*& A);
@@ -36,10 +40,20 @@ void emptyarray(const int rowsize, const int colsize, ptr_3D***& A);
 
 // Memory freeing functions:
 
-template<typename ptr_1D>    // free 1D pointer
+template<typename ptr_>    // free pointer
+void emptypointer(ptr_*& A)
+{
+    if(A!=nullptr) { delete A; A=nullptr; }
+
+    return;
+}
+
+template<typename ptr_1D>    // free 1D array
 void emptyarray(ptr_1D*& A)
 {
     if(A!=nullptr) { delete [] A; A=nullptr; }
+
+    return;
 }
 
 template<typename ptr_2D>                             // free 2D pointer
@@ -55,7 +69,7 @@ void emptyarray(const int rowsize, ptr_2D**& A)
     return;
 }
 
-template<typename ptr_3D>                               // free 3D pointer
+template<typename ptr_3D>                               // free 3D array
 void emptyarray(const int rowsize, const int colsize, ptr_3D***& A)
 {
 

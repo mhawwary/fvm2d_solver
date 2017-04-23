@@ -25,9 +25,10 @@ protected:
     void compute_elemData();
     void compute_nodeData();
 
+    void compute_cell_volume_center(const int& cellID);
 
 protected:
-    MeshData *grid_data_=NULL;
+    MeshData *grid_data_=nullptr;
 
 };
 
