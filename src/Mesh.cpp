@@ -212,9 +212,9 @@ void Mesh::generate_meshData(){
     grid_data_->NintElem  = grid_data_->Nelem  - grid_data_->NbndElem;
     grid_data_->Nintfaces = grid_data_->Nfaces - grid_data_->Nbndfaces;
 
-    _print(grid_data_->NintElem,grid_data_->NbndElem);
+    _compare(grid_data_->NintElem,grid_data_->NbndElem);
     _(grid_data_->Nelem);
-    _print(grid_data_->Nintfaces,grid_data_->Nbndfaces);
+    _compare(grid_data_->Nintfaces,grid_data_->Nbndfaces);
     _(grid_data_->Nfaces);
 
     compute_faceData();

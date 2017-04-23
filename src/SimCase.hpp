@@ -2,9 +2,12 @@
 #define SIMCASE_H
 
 #include"Mesh.hpp"
-//#include"MeshData.h"
 #include"general_tools.h"
 #include"SimData.hpp"
+#include"SpaceSolver.hpp"
+#include"Euler2DSolver.hpp"
+#include"NS2DSolver.hpp"
+#include"ExplicitTimeSolver.hpp"
 
 using namespace std;
 
@@ -23,14 +26,13 @@ protected:
   void logo();
 
 protected:
-  std::string input_fname;  // input file name
-  SimData simdata_ ;
-  Mesh     *grid_=nullptr;
-  MeshData *grid_data_=nullptr;
-  //int simIter = 0;
-  //double sim_phy_time=0.0;
-  //double sim_dt=0.0;
-
+  //std::string input_fname;  // input file name
+  SimData simdata ;
+  GasProb gasdata ;
+  Mesh     *grid=nullptr;
+  MeshData *grid_data=nullptr;
+  SpaceSolver *fvm_space_solver=nullptr;
+  ExplicitTimeSolver *time_solver=nullptr;
 
 };
 

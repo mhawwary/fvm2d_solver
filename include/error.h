@@ -38,12 +38,17 @@
   exit(1); }
 
 #define _(x) std::cout << #x << ": " << x << std::endl;
-#define _print(x,y) std::cout << #x << ": " << x << ", " << #y << ": " << y << std::endl;
+#define _compare(x,y) std::cout << #x << ": " << x << ", " << #y << ": " << y << std::endl;
 #define _print_sd_pts(ID,x_name,x,y_name,y) cout << "ID" << setw(15) << x_name << setw(15) << y_name << "\n" << ID << setw(20) << x << setw(15) << y << endl;
 //#define _print(x,y) cout << #x << ": " << x << ", " << #y << ": " << y << endl;
 #define _compare2(x,y,tol) if (abs(x-y) >= tol) { cout << "------------ Error not matching x and y: " \
 << abs(x-y) <<" ---------- " << "\n" << #x << setw(15) << x << "\n" << #y << setw(15) << y<<endl; cin.get(); }
 
+#define _notImplemented(s){    \
+         printf("\nThis option '%s' is not implemented yet \n at %s:%d\n",s,__FILE__,__LINE__);  \
+    exit(1);}
+
+#define _print(s) printf("\n---%s\n",s);
 
 
 

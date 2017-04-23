@@ -63,7 +63,7 @@ vpath %.h include src
 vpath %.hpp include src
 
 # Objects
-OBJS	= $(OBJ)FVMFlow.o  $(OBJ)SimCase.o $(OBJ)general_tools.o $(OBJ)Mesh.o $(OBJ)SimData.o  # objects 
+OBJS	= $(OBJ)FVMFlow.o  $(OBJ)SimCase.o $(OBJ)general_tools.o $(OBJ)Mesh.o $(OBJ)SimData.o $(OBJ)Euler2DSolver.o $(OBJ)ExplicitTimeSolver.o # objects 
 INCLS	= 
 
 # Compile
@@ -90,6 +90,8 @@ $(OBJ)SimCase.o:   SimCase.hpp SimCase.cpp
 $(OBJ)SimData.o:   SimData.hpp SimData.cpp
 $(OBJ)general_tools.o:   general_tools.h general_tools.cpp
 $(OBJ)Mesh.o:   Mesh.hpp Mesh.cpp
+$(OBJ)Euler2DSolver.o: Euler2DSolver.hpp Euler2DSolver.cpp 
+$(OBJ)ExplicitTimeSolver.o: ExplicitTimeSolver.hpp ExplicitTimeSolver.cpp
 
 clean:
 	rm -f ./$(OBJ)*.o ./$(BIN)*.exe 

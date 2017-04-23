@@ -3,45 +3,65 @@
 
 
 SimCase::SimCase(void){
-    emptypointer(grid_);
-    emptypointer(grid_data_);
+    emptypointer(grid);
+    emptypointer(grid_data);
 }
 
 SimCase::~SimCase(void){
-    emptypointer(grid_);
-    emptypointer(grid_data_);
+    //FatalError("Inside SimCase Destructor");
+
+    emptypointer(fvm_space_solver);
+
+    //FatalError("After empty fvm_space solver");
+
+    emptypointer(grid);
+
+    //FatalError("After empty grid");
+
+    //printf("\n*grid_data: %d\n",grid_data);
+
+    emptypointer(grid_data);
+
+    //printf("\n*grid_data: %d\n",grid_data);
+
+    emptypointer(time_solver);
 }
 
 void SimCase::setup(const std::string &input_fname_){
 
-    simdata_.Parse(input_fname_);
+    simdata.Parse(input_fname_);
+    gasdata.Parse(input_fname_);
+
+    fvm_space_solver = new Euler2DSolver;
+
+    time_solver = new ExplicitTimeSolver;
 
     logo();
 
     cout <<"\n-----------------------------------------------------------\n";
     cout <<"                   Checking Input File Parsing                 \n";
-    cout <<"CaseTitle:   "<<simdata_.case_title<<endl;
-    cout <<"Casemesh: "<<simdata_.mesh_fname<<endl;
-    cout <<"Casepostprocessdir: "<<simdata_.case_postproc_dir<<endl;
-    cout <<"CaseRestart: "<<simdata_.restart_flag<<endl;
-    cout <<"CaseFvmOrder: "<<simdata_.scheme_order<<endl;
-    cout <<"CaseRK: "<<simdata_.RK_order<<endl;
-    cout <<"CaseReimann: "<<simdata_.ReimannSolver_type_<<endl;
-    cout <<"Casedt_: "<<simdata_.dt_<<endl;
-    cout <<"Caset_init_: "<<simdata_.t_init_<<endl;
-    cout <<"Caset_end_: "<<simdata_.t_end_<<endl;
-    cout <<"CasemaxIter: "<<simdata_.maxIter_<<endl;
+    cout <<"CaseTitle:   "<<simdata.case_title<<endl;
+    cout <<"Casemesh: "<<simdata.mesh_fname<<endl;
+    cout <<"Casepostprocessdir: "<<simdata.case_postproc_dir<<endl;
+    cout <<"CaseRestart: "<<simdata.restart_flag<<endl;
+    cout <<"CaseFvmOrder: "<<simdata.scheme_order<<endl;
+    cout <<"CaseRK: "<<simdata.RK_order<<endl;
+    cout <<"CaseReimann: "<<simdata.ReimannSolver_type_<<endl;
+    cout <<"Casedt_: "<<simdata.dt_<<endl;
+    cout <<"Caset_init_: "<<simdata.t_init_<<endl;
+    cout <<"Caset_end_: "<<simdata.t_end_<<endl;
+    cout <<"CasemaxIter: "<<simdata.maxIter_<<endl;
     cout <<"\n-----------------------------------------------------------\n";
 
 
     allocator<char> allchar; // default allocator for char
 
-    mkdir(simdata_.case_postproc_dir.c_str(),0777);
+    mkdir(simdata.case_postproc_dir.c_str(),0777);
 
     char *current_working_dir=allchar.allocate(1000);
     getcwd(current_working_dir,1000);
 
-    chdir(simdata_.case_postproc_dir.c_str());
+    chdir(simdata.case_postproc_dir.c_str());
 
     mkdir("./BINARY",0777);
     mkdir("./feild_output",0777);
@@ -53,29 +73,40 @@ void SimCase::setup(const std::string &input_fname_){
     //chdir("..");
 
     cout<<"\n--> Currnet working directory: "<<current_working_dir<<endl;
-    cout<<"--> Post processing directory: "<<simdata_.case_postproc_dir<<endl;
-
+    cout<<"--> Post processing directory: "<<simdata.case_postproc_dir<<endl;
 
     return;
 }
 
 void SimCase::InitSim(){
 
-    grid_ = new Mesh;
+    // Preparing MeshData:
+    //------------------------
 
-    grid_->Read(simdata_.mesh_fname);
+    grid = new Mesh;
 
-    grid_->generate_meshData();
+    grid->Read(simdata.mesh_fname);
 
-    std::string write_fname__;
+    grid->generate_meshData();
 
-    write_fname__="./post_process/gridtest.out";
+    std::string write_fname_;
 
-    grid_->WriteMesh(write_fname__);
+    write_fname_="./post_process/gridtest.out";
 
-    grid_data_ = grid_->Release_meshData();
+    grid->WriteMesh(write_fname_);
 
-    emptypointer(grid_);
+    grid_data = grid->Release_meshData();
+
+    emptypointer(grid);
+
+    // Setupping Space and Time Solvers and initializing the solution:
+    //-----------------------------------------------------------------
+
+    fvm_space_solver->setup_solver(grid_data,simdata,gasdata);
+
+    fvm_space_solver->InitSol();
+
+    time_solver->setupTimeSolver(fvm_space_solver,&simdata);
 
     return;
 }
@@ -83,6 +114,22 @@ void SimCase::InitSim(){
 
 void SimCase::RunSim(){
 
+    //double gtime=fvm_space_solver->GetPhyTime();
+
+    //double dt_= fvm_space_solver->GetTimeStep();
+
+    double Resid_norm_=10.0;
+
+    while (Resid_norm_>1e-10){
+
+            time_solver->SolveOneStep(fvm_space_solver->GetNumSolution());
+
+            //time_solver->space_solver_->UpdatePhyTime(dt_);
+
+            //gtime=fvm_space_solver->GetPhyTime();
+
+            Resid_norm_=0.0;
+        }
 
 
     return;
