@@ -120,7 +120,9 @@ void SimCase::RunSim(){
 
     double Resid_norm_=10.0;
 
-    while (Resid_norm_>1e-10){
+    int n=0;
+
+    while (Resid_norm_>1e-15){
 
             time_solver->SolveOneStep(fvm_space_solver->GetNumSolution());
 
@@ -128,9 +130,16 @@ void SimCase::RunSim(){
 
             //gtime=fvm_space_solver->GetPhyTime();
 
-            Resid_norm_=0.0;
+            Resid_norm_= time_solver->GetResNorm();
+
+             if(n%10000==1) _compare(n,Resid_norm_);
+
+            n++;
+
+            if(n>1e7) break;
         }
 
+    _compare(n,Resid_norm_);
 
     return;
 }

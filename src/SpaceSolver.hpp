@@ -9,7 +9,6 @@
 #include"general_tools.h"
 #include"global_var.h"
 
-
 class SpaceSolver{
 
 public:
@@ -22,17 +21,20 @@ public:
                              , GasProb& gasdata_)=0;
    virtual void InitSol()=0;
    virtual void UpdateResid(double **Resid_, double **Qn_)=0;
-//   virtual void UpdateSolution(double **Qn_)=0;
-//   virtual void ComputeError()=0;
-//   virtual void Compute_vertex_sol()=0;
-//   virtual void Compute_exact_sol()=0;
-//   virtual void UpdatePhyTime(const double& dt_)=0;
+   virtual void ComputeError()=0;
+   virtual void Compute_vertex_sol()=0;
+   virtual void Compute_exact_sol()=0;
+   virtual void UpdateSolution(double **Qn_)=0;
+   //virtual void Compute_Resid_norm()=0;
 
-   virtual double** GetNumSolution()=0;
 //   virtual void print_num_vertex_sol()=0;
 //   virtual void print_exact_sol()=0;
 //   virtual void print_exact_average_sol()=0;
 //   virtual void print_num_average_sol()=0;
+
+   double** GetNumSolution(){
+       return Qc;
+   }
 
    int GetNdof(){
        return Ndof;
@@ -78,14 +80,6 @@ public:
    }
 
 protected:
-//   virtual void UpdateResidOneCell(const int& cellid, double* q_, double* resid_);
-//   virtual void Reconstruct_sol(const int& face_id, double* ql, double* qr);
-//   virtual double Compute_common_flux(const double* ql, const double* qr
-//                                      , const double& nx, const double& ny);
-//   virtual void Compute_flux_upw();
-//   virtual void get_left_right_sol();
-//   virtual void Rusanov_flux();
-//   virtual void Roe_flux();
 
    virtual void CalcTimeStep()=0;
 //   virtual void CalcLocalTimeStep();
@@ -118,7 +112,10 @@ protected:
 
    /* Locally defined arrays and can be freed in this scope */
 
-   double **Qn=nullptr;      // Nelem * Ndof long
+   double **Qc=nullptr;      // Nelem * Ndof long solution array
+
+   double **dQdx=nullptr;
+   double **dQdy=nullptr;
 
    double **Qv=nullptr;       // Solution at the vertices of cells, total no. of vertices long
 

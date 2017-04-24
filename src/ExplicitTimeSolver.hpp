@@ -1,6 +1,7 @@
 #include"SpaceSolver.hpp"
 #include"SimData.hpp"
 #include"general_tools.h"
+#include"solver_tools.h"
 
 class ExplicitTimeSolver{
 
@@ -37,6 +38,7 @@ public:
         return;
     }
 
+    double GetResNorm();
 protected:
 
     void FwdEuler(double **q_);

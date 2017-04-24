@@ -16,9 +16,11 @@ void SimData::Parse(const std::string &fname){
     forces_print_freq=gp_input("Simulation/forces_print_freq",0);
     fields_print_freq=gp_input("Simulation/fields_print_freq",0);
 
-    scheme_order=gp_input("space_solver/order",1);
+    scheme_order=gp_input("space_solver/scheme_order",1);
     ReimannSolver_type_ = gp_input("space_solver/Riemann_solver","Rusanov");
     eqn_set = gp_input("space_solver/eqn_set","Euler");
+    FarFieldBC = gp_input("space_solver/FarField_Boundary_condition","Characteristics");
+    WallBC = gp_input("space_solver/Wall_Boundary_condition","Slip");
 
     dt_ = gp_input("time_solver/dt",1e-9);
     t_init_ = gp_input("time_solver/initial_time",1e-9);
@@ -27,8 +29,7 @@ void SimData::Parse(const std::string &fname){
     CFL_ = gp_input("time_solver/CFL",0.5);
     RK_order=gp_input("time_solver/explicit/RK_order",0);
 
-
-
+    return;
 }
 
 void GasProb::Parse(const std::string &fname){

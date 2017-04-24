@@ -21,7 +21,7 @@ struct Face{
     double Xf=0.0;  // face center x
     double Yf=0.0;  // face center y
 
-    double Af=1;  // face area
+    double Af=1.;  // face area
 
     int bnd_type=0; // 0:interior , -1: Wall , -2: FarFeild
 
@@ -144,7 +144,7 @@ struct Elem{
 
     int *neigh_eID=nullptr; // neighbour elements ID
 
-    double Vc=1;  // cell volume
+    double Vc=1.;  // cell volume
 
     double Xc=0.; // cell center xc
     double Yc=0.; // cell center yc
@@ -159,6 +159,16 @@ struct BoundElem: Elem{
 
 struct GhostElem{
 
+    //~GhostElem(){}
+
+    int bnd_type=0; // 0:interior , -1: Wall , -2: FarFeild
+
+    int ID=0;   // GhostElem ID
+
+    double Vc=1.;  // cell volume
+
+    double Xc=0.; // cell center xc
+    double Yc=0.; // cell center yc
 
 };
 
@@ -177,13 +187,12 @@ struct MeshData{
 
         emptyarray(Xn);
         emptyarray(Yn);
-
-        emptyarray(gh_elemlist);
     }
 
     int Nnodes=0;
     int Nfaces=0;
     int Nelem =0;
+    int Nelem_extend=0;
 
     int NbndNodes=0;
     int Nbndfaces=0;
@@ -208,8 +217,6 @@ struct MeshData{
 
     BoundElem *bnd_elemlist=nullptr;
     BoundFace *bnd_facelist=nullptr;
-
-    GhostElem *gh_elemlist=nullptr;
 
     std::map <int, int> elem_gid_to_bid;  // map from global ID to bound ID
     std::map <int, int> elem_gid_to_intId;  // map from global ID to interior ID

@@ -36,7 +36,6 @@ void Mesh::Read(std::string &mesh_fname_){
     grid_data_->Yn = new double[grid_data_->Nnodes];
 
     grid_data_->facelist= new Face[grid_data_->Nfaces];
-    grid_data_->elemlist= new Elem[grid_data_->Nelem];
 
     // Fill in node coordinates list:
     //------------------------------------------------------
@@ -59,13 +58,6 @@ void Mesh::Read(std::string &mesh_fname_){
         grid_data_->facelist[i].v1 += -1;
     }
 
-    // Create a dummy element list that contains all elements:
-    //--------------------------------------------------------
-
-    for(i=0; i<grid_data_->Nelem; i++){
-        grid_data_->elemlist[i].ID=i;
-    }
-
     // Fill in more information for the dummy face list:
     //------------------------------------------------------
     grid_data_->Nbndfaces=0;
@@ -80,15 +72,37 @@ void Mesh::Read(std::string &mesh_fname_){
 
         if(grid_data_->facelist[i].Rcell<0){
 
+            grid_data_->facelist[i].bnd_type = grid_data_->facelist[i].Rcell;
+
+            grid_data_->facelist[i].Rcell
+                    = grid_data_->Nelem + grid_data_->Nbndfaces; // modifying the ID for ghost cells
+
             grid_data_->Nbndfaces++;
-
-            grid_data_->elemlist[grid_data_->facelist[i].Lcell].isbound=true;
-
-            grid_data_->elemlist[grid_data_->facelist[i].Lcell].bnd_type
-                                     = grid_data_->facelist[i].Rcell;
 
             grid_data_->facelist[i].isbound=true;
         }
+    }
+
+    // Constructing extended ElemList :
+    //------------------------------------
+    /* No. of ghost cells equal the no. of boundary faces */
+    grid_data_->Nelem_extend = grid_data_->Nelem + grid_data_->Nbndfaces;
+    grid_data_->elemlist= new Elem[grid_data_->Nelem_extend];
+
+    for(i=0; i<grid_data_->Nelem_extend; i++)
+        grid_data_->elemlist[i].ID=i;
+
+    for(i=0; i<grid_data_->Nbndfaces; i++){
+
+        grid_data_->elemlist[grid_data_->facelist[i].Lcell].isbound=true;
+
+        grid_data_->elemlist[grid_data_->facelist[i].Lcell].bnd_type
+                = grid_data_->facelist[i].bnd_type;
+
+        grid_data_->elemlist[grid_data_->facelist[i].Rcell].isbound=true;
+
+        grid_data_->elemlist[grid_data_->facelist[i].Rcell].bnd_type
+                = grid_data_->facelist[i].bnd_type;
     }
 
     // Calc. the no. of boundary elements:
@@ -219,6 +233,8 @@ void Mesh::generate_meshData(){
 
     compute_faceData();
 
+    //printf("\nFinished computing Face Data\n");
+
     compute_elemData();
 
     return;
@@ -287,7 +303,7 @@ void Mesh::compute_elemData(){
         elem_to_node_set[iL].insert(grid_data_->facelist[i].v0);
         elem_to_node_set[iL].insert(grid_data_->facelist[i].v1);
 
-        if(iR>=0){
+        if(grid_data_->facelist[i].bnd_type==0){
 
             elem_to_face_set[iR].insert(fID);
 
@@ -432,16 +448,8 @@ void Mesh::WriteMesh(std::string &write_fname_){
                << grid_data_->facelist[i].v0 << " "
                << grid_data_->facelist[i].v1 << " "
                << grid_data_->facelist[i].Lcell << " "
+               << grid_data_->facelist[i].Rcell << " "
                << grid_data_->facelist[i].bnd_type << "\n";
-    }
-
-    for(i=0; i<grid_data_->Nfaces; i++){
-
-        output << grid_data_->facelist[i].ID << " "
-               << grid_data_->facelist[i].v0 << " "
-               << grid_data_->facelist[i].v1 << " "
-               << grid_data_->facelist[i].Lcell << " "
-               << grid_data_->facelist[i].Rcell << "\n";
     }
 
     for(i=0; i<grid_data_->Nelem; i++){

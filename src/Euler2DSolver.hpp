@@ -17,55 +17,54 @@ public:
 
 //  Construction Functions :
     Euler2DSolver(void){}
+    virtual ~Euler2DSolver();
 
-   virtual ~Euler2DSolver();
-
-   virtual void setup_solver(MeshData*& meshdata_, SimData& simdata_
+    virtual void setup_solver(MeshData*& meshdata_, SimData& simdata_
                              , GasProb& gasdata_);
+    virtual void InitSol();
 
-   virtual void InitSol();
-   virtual void UpdateResid(double **Resid_, double **Qn_){}
-//   virtual void UpdateSolution(double **Qn_)=0;
-//   virtual void ComputeError()=0;
-//   virtual void Compute_vertex_sol()=0;
-//   virtual void Compute_exact_sol()=0;
-//   virtual void UpdatePhyTime(const double& dt_)=0;
-
-//   virtual void SetPhyTime(const double& time_)=0;
-//   virtual double GetPhyTime()=0;
-//   virtual double GetTimeStep()=0;
-//   virtual double GetCFL()=0;
-
-   virtual double** GetNumSolution(){
-        return Qn;
-    }
-
-//   virtual double* GetVertexNumSol()=0;
-//   virtual double* GetExactSolution()=0;
-
-//   virtual void print_num_vertex_sol()=0;
-//   virtual void print_exact_sol()=0;
-//   virtual void print_exact_average_sol()=0;
-//   virtual void print_num_average_sol()=0;
+    virtual void UpdateResid(double **Resid_, double **Qn_);
+    virtual void ComputeError(){}
+    virtual void Compute_vertex_sol(){}
+    virtual void Compute_exact_sol(){}
+    virtual void UpdateSolution(double **Qn_){}
 
     virtual void CalcTimeStep();
 
 protected:
-//   virtual void UpdateResidOneCell(const int& cellid, double* q_, double* resid_);
-//   virtual void Reconstruct_sol(const int& face_id, double* ql, double* qr);
-//   virtual double Compute_common_flux(const double* ql, const double* qr
-//                                      , const double& nx, const double& ny);
-//   virtual void Compute_flux_upw();
-//   virtual void get_left_right_sol();
-//   virtual void Rusanov_flux();
-//   virtual void Roe_flux();
 
-   //virtual void CalcTimeStep();
-    //virtual void CalcLocalTimeStep();
+    void compute_resid_OneFace(const int& face_id, double* resid_);
 
+    void SetGhostVariables();   // Setting Boundary Conditions
 
-   void Reset_solver();
+    void Reconstruct_sol();
 
+    void Compute_left_right_facesol(const int& fID, double* Ql_
+                                    , double* Qr_);
+    void Compute_left_right_boundfacesol(const int& fID, double* Ql_
+                                    , double* Qr_);
+
+    void Compute_common_inviscidflux(const double* Ql, const double* Qr
+                                     ,const double& nx, const double& ny
+                                     , double* flux_);
+    void Rusanov_flux(const double *Ql, const double *Qr
+                      , const double& nx, const double& ny
+                      , double* flux_);
+    void Roe_flux(){}
+
+    void compute_normal_inViscidFlux(const double& nx, const double& ny
+                                     , const double *Q_, double *normInvflux_
+                                     , double& Vn, double& c);
+
+    void compute_GhostSol_inviscidWallBC(const double& nx, const double& ny
+                                         , const double* Ql, double* Qr);
+
+    void compute_GhostSol_farfieldBC(const double& nx, const double& ny,
+                                     const double* Ql, double* Qr);
+
+    void Residulas_setZero(double** Residuals);
+
+    void Reset_solver();
 
 //protected:
 

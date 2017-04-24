@@ -44,6 +44,8 @@ struct SimData {
     int scheme_order=0;   // FVM Scheme order
     std::string ReimannSolver_type_;
     std::string eqn_set;
+    std::string FarFieldBC;
+    std::string WallBC;
 
     int restart_flag=0;  //0: start a new simulation; 1: restart a previous simulation
     int restart_iter=0;

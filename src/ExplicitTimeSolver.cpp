@@ -57,7 +57,7 @@ void ExplicitTimeSolver::Reset_time_solver(){
 
 void ExplicitTimeSolver::SolveOneStep(double **qn_){
 
-    //space_solver->UpdateResid(resid,qn_);
+    space_solver_->UpdateResid(resid,qn_);
 
     switch (RK_order_) {
 
@@ -131,3 +131,33 @@ void ExplicitTimeSolver::CopyOldSol(double **q_t_, double **qn_){
 
     return;
 }
+
+double ExplicitTimeSolver::GetResNorm(){
+
+    double resid_norm_=0.;
+
+    resid_norm_ = L2norm(Nelem,Ndof,resid);
+
+    return resid_norm_;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
