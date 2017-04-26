@@ -23,9 +23,8 @@ public:
    virtual void UpdateResid(double **Resid_, double **Qn_)=0;
    virtual void ComputeError()=0;
    virtual void Compute_vertex_sol()=0;
-   virtual void Compute_exact_sol()=0;
    virtual void UpdateSolution(double **Qn_)=0;
-   //virtual void Compute_Resid_norm()=0;
+   virtual void CalclocalTimeStep(double* dt_cell_)=0;
 
 //   virtual void print_num_vertex_sol()=0;
 //   virtual void print_exact_sol()=0;
@@ -34,6 +33,10 @@ public:
 
    double** GetNumSolution(){
        return Qc;
+   }
+
+   double** GetVertexSolution(){
+       return Qv;
    }
 
    int GetNdof(){
@@ -78,13 +81,6 @@ public:
 
        return CFL_;
    }
-
-protected:
-
-   virtual void CalcTimeStep()=0;
-//   virtual void CalcLocalTimeStep();
-  // virtual void Reset_solver();
-
 
 protected:
 

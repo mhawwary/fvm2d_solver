@@ -3,6 +3,7 @@
 
 #include"../include/getpot.h"
 #include"global_var.h"
+#include"general_tools.h"
 
 struct GasProb{
 
@@ -10,9 +11,9 @@ struct GasProb{
     //------------------
 
     double gama=1.4;
-    double R_gas = 287;
+    double R_gas = 287.0;
     double Prndtl = 0.72;
-    double Ptot = 101325;
+    double Ptot = 101325.0;
     double Rho_tot = 1.225;
     double T_tot = 288.2030861;
 
@@ -51,6 +52,7 @@ struct SimData {
     int restart_iter=0;
     int forces_print_freq=10;
     int fields_print_freq=10;
+    int conv_hist_pfreq=10;
 
     double dt_ = 1e-3;  // dt time step
     double t_init_ = 0;  // initial time
@@ -58,6 +60,7 @@ struct SimData {
     double maxIter_ = 1e10; // maximum number of iterations
     double CFL_=0.5;
     int RK_order=0;       // Runge-Kutta type (0: euler FT, 2: SSPRK22, 3: SSPRK33)
+    int use_local_timeStep=0;
 
     void Parse(const std::string &fname);
 

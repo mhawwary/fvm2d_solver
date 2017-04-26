@@ -62,6 +62,8 @@ void Mesh::Read(std::string &mesh_fname_){
     //------------------------------------------------------
     grid_data_->Nbndfaces=0;
 
+    grid_data_->Nwallnodes=0;  // No. of wall nodes = No. of wall faces
+
     for(i=0; i<grid_data_->Nfaces; i++){
 
         input >> grid_data_->facelist[i].Lcell
@@ -80,8 +82,12 @@ void Mesh::Read(std::string &mesh_fname_){
             grid_data_->Nbndfaces++;
 
             grid_data_->facelist[i].isbound=true;
+
+            if(grid_data_->facelist[i].bnd_type==-1)  grid_data_->Nwallnodes++;
         }
     }
+
+    grid_data_->wall_nodelist=new int[grid_data_->Nwallnodes];
 
     // Constructing extended ElemList :
     //------------------------------------
@@ -237,8 +243,131 @@ void Mesh::generate_meshData(){
 
     compute_elemData();
 
+    compute_wallNodes();
+
     return;
 
+}
+
+void Mesh::compute_wallNodes(){
+
+    std::set<int> wall_node_set;
+
+    register int i;
+
+    for(i=0; i<grid_data_->Nbndfaces; i++){
+
+        if(grid_data_->facelist[i].bnd_type==-1){
+            wall_node_set.insert(grid_data_->facelist[i].v0);
+            wall_node_set.insert(grid_data_->facelist[i].v1);
+        }
+    }
+
+    std::vector<int> wall_node_vector (wall_node_set.begin(), wall_node_set.end());
+
+    std::sort(wall_node_vector.begin(),wall_node_vector.end());
+
+    int Nupper=0,Nlower=0;
+    std::vector<int> upperwall_node_vector;
+    std::vector<int> lowerwall_node_vector;
+
+    double Y_;
+
+    for(i=0; i<grid_data_->Nwallnodes; i++){
+        grid_data_->wall_nodelist[i] = wall_node_vector[i];
+        Y_ = grid_data_->Yn[grid_data_->wall_nodelist[i]];
+
+        if(Y_ > 0){ // upper wall point
+            Nupper++;
+            upperwall_node_vector.push_back(wall_node_vector[i]);
+
+        }else if(Y_<0) {// lower wall point
+            Nlower++;
+            lowerwall_node_vector.push_back(wall_node_vector[i]);
+
+        }else{  // Ywn==0
+            Nupper++; Nlower++;
+            upperwall_node_vector.push_back(wall_node_vector[i]);
+            lowerwall_node_vector.push_back(wall_node_vector[i]);
+        }
+    }
+
+    //Nupper++;  // for adding the point 1,0;
+    //upperwall_node_vector.push_back(0);
+
+    grid_data_->NupperWallnodes = Nupper;
+    grid_data_->NlowerWallnodes = Nlower;
+
+    double *Xupp=nullptr,*Yupp=nullptr;
+    Xupp = new double[Nupper];
+    Yupp = new double[Nupper];
+
+    grid_data_->upper_wall_nodelist = new int[Nupper];
+
+    for(i=0; i<Nupper; i++){
+        grid_data_->upper_wall_nodelist[i] = upperwall_node_vector[i];
+        Xupp[i] = grid_data_->Xn[upperwall_node_vector[i]];
+        Yupp[i] = grid_data_->Yn[upperwall_node_vector[i]];
+    }
+
+    double *Xlow=nullptr,*Ylow=nullptr;
+    Xlow = new double[Nlower];
+    Ylow = new double[Nlower];
+
+    grid_data_->lower_wall_nodelist = new int[Nlower];
+
+    for(i=0; i<Nlower; i++){
+        grid_data_->lower_wall_nodelist[i] = lowerwall_node_vector[i];
+        Xlow[i] = grid_data_->Xn[lowerwall_node_vector[i]];
+        Ylow[i] = grid_data_->Yn[lowerwall_node_vector[i]];
+    }
+
+    QuickSort3(Xlow,Ylow,grid_data_->lower_wall_nodelist,0,Nlower-1);
+    QuickSort3(Xupp,Yupp,grid_data_->upper_wall_nodelist,0,Nupper-1);
+
+//    printf("\n Printing upper Wall node IDs: \n");
+//    for(i=0; i<Nupper; i++){
+//        printf("\n%d %e %e\n",grid_data_->upper_wall_nodelist[i],Xupp[i],Yupp[i]);
+//    }
+
+//    printf("\n Printing lower Wall node IDs: \n");
+//    for(i=0; i<Nlower; i++){
+//        printf("\n%d %e %e\n",grid_data_->lower_wall_nodelist[i],Xlow[i],Ylow[i]);
+//    }
+
+    wall_node_set.clear();
+
+    for(i=Nupper-1; i>=0; i--){
+        wall_node_set.insert(grid_data_->upper_wall_nodelist[i]);
+    }
+
+    for(i=0; i<Nlower; i++){
+        wall_node_set.insert(grid_data_->lower_wall_nodelist[i]);
+    }
+
+    std::set<int>::iterator wall_node_set_it;
+
+    i=0;
+    for(wall_node_set_it=wall_node_set.begin();
+        wall_node_set_it!=wall_node_set.end();
+        ++wall_node_set_it) {
+
+        grid_data_->wall_nodelist[i] = *wall_node_set_it;
+
+        i++;
+    }
+
+    std::sort(grid_data_->wall_nodelist
+              ,grid_data_->wall_nodelist+grid_data_->Nwallnodes
+              ,std::greater<int>());
+
+    emptyarray(Xupp);
+    emptyarray(Yupp);
+
+    emptyarray(Xlow);
+    emptyarray(Ylow);
+
+    return;
 }
 
 void Mesh::compute_faceData(){
@@ -280,12 +409,16 @@ void Mesh::compute_elemData(){
 
     std::set<int> *elem_to_face_set=nullptr;
     std::set<int> *elem_to_node_set=nullptr;
+    std::set<int> *node_to_elem_set=nullptr;
 
     std::set<int>::iterator elem_to_face_it;
     std::set<int>::iterator elem_to_node_it;
+    std::set<int>::iterator node_to_elem_it;
 
     elem_to_face_set = new std::set<int>[grid_data_->Nelem];
     elem_to_node_set = new std::set<int>[grid_data_->Nelem];
+
+    node_to_elem_set = new std::set<int>[grid_data_->Nnodes];
 
     register int i;
 
@@ -293,7 +426,7 @@ void Mesh::compute_elemData(){
 
     for(i=0; i<grid_data_->Nfaces; i++){
 
-        fID = grid_data_->facelist[i].ID;
+        fID = i;
 
         iL = grid_data_->facelist[i].Lcell;
         iR = grid_data_->facelist[i].Rcell;
@@ -303,6 +436,12 @@ void Mesh::compute_elemData(){
         elem_to_node_set[iL].insert(grid_data_->facelist[i].v0);
         elem_to_node_set[iL].insert(grid_data_->facelist[i].v1);
 
+        node_to_elem_set[grid_data_->facelist[i].v0].insert(iL);
+        node_to_elem_set[grid_data_->facelist[i].v1].insert(iL);
+
+        node_to_elem_set[grid_data_->facelist[i].v0].insert(iR);
+        node_to_elem_set[grid_data_->facelist[i].v1].insert(iR);
+
         if(grid_data_->facelist[i].bnd_type==0){
 
             elem_to_face_set[iR].insert(fID);
@@ -310,6 +449,26 @@ void Mesh::compute_elemData(){
             elem_to_node_set[iR].insert(grid_data_->facelist[i].v0);
             elem_to_node_set[iR].insert(grid_data_->facelist[i].v1);
         }
+    }
+
+    grid_data_->node_to_elemlist = new int*[grid_data_->Nnodes];
+
+    grid_data_->Nnode_neighElem = new int [grid_data_->Nnodes];
+
+    for(i=0; i<grid_data_->Nnodes; i++){
+
+        grid_data_->Nnode_neighElem[i] = node_to_elem_set[i].size();
+        grid_data_->node_to_elemlist[i] = new int[grid_data_->Nnode_neighElem[i] ];
+
+        j=0;
+        for(node_to_elem_it=node_to_elem_set[i].begin();
+            node_to_elem_it!=node_to_elem_set[i].end();
+            ++node_to_elem_it){
+
+            grid_data_->node_to_elemlist[i][j] = *node_to_elem_it;
+            j++;
+        }
+
     }
 
     int Ntri=0,Nquad=0,Nothers=0;
@@ -324,14 +483,25 @@ void Mesh::compute_elemData(){
         j=0;
         elem_to_node_it = elem_to_node_set[i].begin();
 
-        for(elem_to_face_it=elem_to_face_set[i].begin();
-            elem_to_face_it!=elem_to_face_set[i].end(); ++elem_to_face_it){
+//        for(elem_to_face_it=elem_to_face_set[i].begin();
+//            elem_to_face_it!=elem_to_face_set[i].end(); ++elem_to_face_it){
+
+//            grid_data_->elemlist[i].to_face[j] = *elem_to_face_it;
+
+//            grid_data_->elemlist[i].to_node[j] = *elem_to_node_it;
+
+//            j++; ++elem_to_node_it;
+//        }
+
+        elem_to_face_it=elem_to_face_set[i].begin();
+
+        for(j=0; j<grid_data_->elemlist[i].n_local_faces; j++){
 
             grid_data_->elemlist[i].to_face[j] = *elem_to_face_it;
 
             grid_data_->elemlist[i].to_node[j] = *elem_to_node_it;
 
-            j++; ++elem_to_node_it;
+            ++elem_to_node_it; elem_to_face_it++;
         }
 
         if(elem_to_face_set[i].size()==3){
@@ -357,10 +527,11 @@ void Mesh::compute_elemData(){
      * for post processing.
      * */
 
-    //printf("\nNtriangles: %d,  Nquads: %d,  Nother:  %d\n\n",Ntri,Nquad,Nothers);
+    printf("\nNtriangles: %d,  Nquads: %d,  Nother:  %d\n",Ntri,Nquad,Nothers);
 
     emptyarray(elem_to_face_set);
     emptyarray(elem_to_node_set);
+    emptyarray(node_to_elem_set);
 
     return;
 }
@@ -403,12 +574,15 @@ void Mesh::compute_cell_volume_center(const int &ii){
         test += (nx+ny)*A;
     }
 
-    if(abs(test)>0){
+    if(abs(test)!=0){
         FatalError("Area test Failed for some elements");
+        printf("Area test: %e\n",test);
         std::cin.get();
     }
 
     Volume = 0.5 * Volume;
+
+    if(Volume < 0) FatalErrorST("Negative Volume");
 
     grid_data_->elemlist[ii].Vc = Volume;
 
@@ -458,8 +632,54 @@ void Mesh::WriteMesh(std::string &write_fname_){
                << grid_data_->elemlist[i].bnd_type << "\n";
     }
 
-    return;
+    std::ofstream output1 ("./post_process/CellVolume.dat");
 
+    for(i=0; i<grid_data_->Nelem; i++){
+
+        output1 << grid_data_->elemlist[i].Xc << " "
+               << grid_data_->elemlist[i].Yc << " "
+               << grid_data_->elemlist[i].Vc << "\n";
+    }
+
+    return;
+}
+
+void Mesh::WriteMeshTecplot(std::string &write_fname_){
+
+    register int k,j;
+
+    const char* fname = write_fname_.c_str();
+
+    //fname = write_fname_.c_str();
+
+    FILE*  outfile=fopen(fname,"wt");
+
+//    fprintf(outfile, "VARIABLES = \"X\",\"Y\",\"M\",\"P\",\"RHO\",\"u\",\"v\"");
+    fprintf(outfile, "VARIABLES = \"X\",\"Y\",\"M\"");
+    fprintf(outfile, "\nZONE N=%d, E=%d, F=FEPOINT, ET=FEPOLYGON\n", grid_data_->Nnodes, grid_data_->Nelem);
+
+    for(k=0; k<grid_data_->Nnodes; k++)
+    {
+        fprintf(outfile, "%e %e %e\n",
+                grid_data_->Xn[k], grid_data_->Yn[k], 0.0);
+    }
+
+    int node_id;
+
+    for(k=0; k<grid_data_->Nelem; k++)
+    {
+        fprintf(outfile, "\n");
+        for(j=0; j<grid_data_->elemlist[k].n_local_nodes; j++){
+            node_id = grid_data_->elemlist[k].to_node[j];
+            fprintf(outfile, "%d ",node_id+1);
+        }
+    }
+
+    fclose(outfile);
+
+    //emptyarray(fname);
+
+    return;
 }
 
 MeshData* Mesh::Release_meshData(){

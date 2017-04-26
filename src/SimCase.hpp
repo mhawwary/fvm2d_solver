@@ -24,6 +24,9 @@ public:
 
 protected:
   void logo();
+  void dump_resid_norm(const int& iter_, double& resid_norm, double& cont_resid
+                       ,double& Xmom_resid, double& Ymom_resid, double& Energy_resid);
+  void dump_wall_data(double** Qv);
 
 protected:
   //std::string input_fname;  // input file name

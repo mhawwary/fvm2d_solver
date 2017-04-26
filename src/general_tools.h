@@ -23,7 +23,19 @@
 
 #include <set>
 
+#include "vector"
+
+#include"algorithm"
+
+#include <iterator>
+
 #include"../include/error.h"
+
+void QuickSort(double*& szArray,double*& ssArray , int nLower, int nUpper);
+int Partition(double*& szArray, double*& ssArray,int nLower, int nUpper);
+
+void QuickSort3(double*& mainArray,double*& A1 , int*& A2 , int nLower, int nUpper);
+int Partition3(double*& mainArray,double*& A1 , int*& A2, int nLower, int nUpper);
 
 template<typename ptr_>    // free 1D pointer
 void emptypointer(ptr_*& A);

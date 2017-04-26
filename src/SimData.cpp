@@ -13,14 +13,15 @@ void SimData::Parse(const std::string &fname){
 
     restart_flag=gp_input("Simulation/restart_flag",0);
     restart_iter=gp_input("Simulation/restart_iter",0);
-    forces_print_freq=gp_input("Simulation/forces_print_freq",0);
-    fields_print_freq=gp_input("Simulation/fields_print_freq",0);
+    forces_print_freq=gp_input("Simulation/forces_print_freq",10);
+    fields_print_freq=gp_input("Simulation/fields_print_freq",10);
+    conv_hist_pfreq =gp_input("Simulation/conv_hist_print_freq",10);
 
     scheme_order=gp_input("space_solver/scheme_order",1);
     ReimannSolver_type_ = gp_input("space_solver/Riemann_solver","Rusanov");
     eqn_set = gp_input("space_solver/eqn_set","Euler");
-    FarFieldBC = gp_input("space_solver/FarField_Boundary_condition","Characteristics");
-    WallBC = gp_input("space_solver/Wall_Boundary_condition","Slip");
+    FarFieldBC = gp_input("space_solver/FarField_Boundary_condition","Extrapolation");
+    WallBC = gp_input("space_solver/Wall_Boundary_condition","Extrapolation");
 
     dt_ = gp_input("time_solver/dt",1e-9);
     t_init_ = gp_input("time_solver/initial_time",1e-9);
@@ -28,6 +29,7 @@ void SimData::Parse(const std::string &fname){
     maxIter_ = gp_input("time_solver/maximum_iteration",1e-9);
     CFL_ = gp_input("time_solver/CFL",0.5);
     RK_order=gp_input("time_solver/explicit/RK_order",0);
+    use_local_timeStep = gp_input("time_solver/use_local_timeStep",0);
 
     return;
 }
@@ -37,11 +39,11 @@ void GasProb::Parse(const std::string &fname){
     GetPot gp_input(fname.c_str());
 
     gama = gp_input("Fluid/gamma",1.4);
-    R_gas = gp_input("Fluid/R_gas_constant",287);
+    R_gas = gp_input("Fluid/R_gas_constant",287.0);
     Prndtl = gp_input("Fluid/Prandtl_no",0.72);
     Ptot = gp_input("Fluid/P_infinity",100000.0);
     Rho_tot = gp_input("Fluid/rho_infinity",1.225);
-    T_tot = gp_input("Fluid/T_inifinity",300);
+    T_tot = gp_input("Fluid/T_inifinity",300.0);
 
 
     alpha_deg_ = gp_input("Flow/alpha",0.);
@@ -69,10 +71,17 @@ void GasProb::CalculateFlowProperties(double& rho_,
 
     c_ = sqrt(gama*p_/rho_);
 
+    rho_=1.0;
+    p_ = 1.0/gama;
+    c_=1.0;
+
     u_ = Mach_*c_*cos(alpha_deg_ * PI /180.0);
     v_ = Mach_*c_*sin(alpha_deg_ * PI /180.0);
 
-    E_ = (p_/(gama-1.0)) + 0.5 * rho_ * (pow(u_,2)+pow(v_,2)) ;
+    E_ = (p_/(gama-1.0)) + (0.5 * rho_ * (pow(u_,2)+pow(v_,2))) ;
+
+//    printf("\n\nP: %e, T: %e, rho: %e, u: %e, v: %e, E: %e",p_, T_, rho_, u_, v_, E_);
+//    std::cin.get();
 
     return;
 }
@@ -95,10 +104,17 @@ void GasProb::CalculateFlowProperties(double& rho_,
 
     c_ = sqrt(gama*p_/rho_);
 
+    rho_=1.0;
+    p_ = 1.0/gama;
+    c_=1.0;
+
     u_ = Mach_*c_*cos(alpha_deg_ * PI /180.0);
     v_ = Mach_*c_*sin(alpha_deg_ * PI /180.0);
 
-    E_ = (p_/(gama-1.0)) + 0.5 * rho_ * (pow(u_,2)+pow(v_,2)) ;
+    E_ = (p_/(gama-1.0)) + (0.5 * rho_ * (pow(u_,2)+pow(v_,2))) ;
+
+//    printf("\n\nP: %e, T: %e, rho: %e, u: %e, v: %e, E: %e",p_, T_, rho_, u_, v_, E_);
+//    std::cin.get();
 
     return;
 }

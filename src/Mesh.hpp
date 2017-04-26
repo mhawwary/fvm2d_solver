@@ -13,6 +13,7 @@ class Mesh{
 
     void Read(std::string& mesh_fname_);
     void WriteMesh(std::string& write_fname_);
+    void WriteMeshTecplot(std::string& write_fname_);
     void generate_meshData();
 
     MeshData* Release_meshData(void);
@@ -23,7 +24,7 @@ protected:
 
     void compute_faceData();
     void compute_elemData();
-    void compute_nodeData();
+    void compute_wallNodes();
 
     void compute_cell_volume_center(const int& cellID);
 

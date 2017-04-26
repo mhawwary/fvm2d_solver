@@ -21,7 +21,7 @@ struct Face{
     double Xf=0.0;  // face center x
     double Yf=0.0;  // face center y
 
-    double Af=1.;  // face area
+    double Af=1.0;  // face area
 
     int bnd_type=0; // 0:interior , -1: Wall , -2: FarFeild
 
@@ -144,10 +144,10 @@ struct Elem{
 
     int *neigh_eID=nullptr; // neighbour elements ID
 
-    double Vc=1.;  // cell volume
+    double Vc=1.0;  // cell volume
 
-    double Xc=0.; // cell center xc
-    double Yc=0.; // cell center yc
+    double Xc=0.0; // cell center xc
+    double Yc=0.0; // cell center yc
 
 };
 
@@ -179,11 +179,12 @@ struct MeshData{
         emptyarray(elemlist);
         emptyarray(facelist);
 
-        emptyarray(int_elemlist);
-        emptyarray(int_facelist);
+        emptyarray(wall_nodelist);
+        emptyarray(upper_wall_nodelist);
+        emptyarray(lower_wall_nodelist);
 
-        emptyarray(bnd_elemlist);
-        emptyarray(bnd_facelist);
+        emptyarray(Nnode_neighElem);
+        emptyarray(Nnodes,node_to_elemlist);
 
         emptyarray(Xn);
         emptyarray(Yn);
@@ -197,6 +198,10 @@ struct MeshData{
     int NbndNodes=0;
     int Nbndfaces=0;
     int NbndElem=0;
+
+    int Nwallnodes=0;
+    int NupperWallnodes=0;
+    int NlowerWallnodes=0;
 
     int NintElem=0;
     int Nintfaces=0;
@@ -212,17 +217,19 @@ struct MeshData{
     Face *facelist=nullptr;
     Elem *elemlist=nullptr;
 
-    Face *int_facelist=nullptr;  // array of faces
-    Elem *int_elemlist=nullptr;  // array of elements
+    int *wall_nodelist=nullptr;
+    int *upper_wall_nodelist=nullptr;
+    int *lower_wall_nodelist=nullptr;
 
-    BoundElem *bnd_elemlist=nullptr;
-    BoundFace *bnd_facelist=nullptr;
+    int **node_to_elemlist=nullptr;
 
-    std::map <int, int> elem_gid_to_bid;  // map from global ID to bound ID
-    std::map <int, int> elem_gid_to_intId;  // map from global ID to interior ID
+    int *Nnode_neighElem=nullptr;
 
-    std::map <int, int> face_gid_to_bid;  // map from global ID to bound ID
-    std::map <int, int> face_gid_to_intId;  // map from global ID to interior ID
+//    std::map <int, int> elem_gid_to_bid;  // map from global ID to bound ID
+//    std::map <int, int> elem_gid_to_intId;  // map from global ID to interior ID
+
+//    std::map <int, int> face_gid_to_bid;  // map from global ID to bound ID
+//    std::map <int, int> face_gid_to_intId;  // map from global ID to interior ID
 
 };
 

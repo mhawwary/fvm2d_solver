@@ -99,6 +99,9 @@ $(OBJ)solver_tools.o: solver_tools.h solver_tools.c
 
 clean:
 	rm -f ./$(OBJ)*.o ./$(BIN)*.exe 
-	rm -rf ./post_process/ 
+	#rm -rf ./post_process/ 
 	@echo  removing all object and executable files
+clean2:
+	rm -rf ./post_process/
+ 
 

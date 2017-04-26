@@ -22,6 +22,7 @@ void Euler2DSolver::setup_solver(MeshData*& meshdata_, SimData& osimdata_
     Nbndfaces = grid_->Nbndfaces;
 
     scheme_order = simdata_->scheme_order;
+    Ndof = 4;
 
     register int i;
 
@@ -56,7 +57,7 @@ void Euler2DSolver::setup_solver(MeshData*& meshdata_, SimData& osimdata_
 
     dt_ = simdata_->dt_;
 
-    CalcTimeStep();
+    CFL_ = simdata_->CFL_;
 
     // Screen Output of input and simulation parameters:
 //    cout <<"\n===============================================\n";
@@ -69,29 +70,6 @@ void Euler2DSolver::setup_solver(MeshData*& meshdata_, SimData& osimdata_
 //    cout << "Polynomial  order : "<< simdata_->poly_order_  << endl;
 //    cout << "Runge-Kutta order : "<< simdata_->RK_order_    << endl;
 //    cout << "Upwind parameter  : "<< simdata_->upwind_param_<< endl <<"\n";
-
-    return;
-}
-
-void Euler2DSolver::CalcTimeStep(){
-
-//    if(simdata_->calc_dt_flag==1){
-
-//        dt_ = (grid_->dx * simdata_->CFL_ )/ simdata_->a_wave_;
-//        CFL = simdata_->CFL_;
-
-//        T_period = (grid_->xf - grid_->x0) / simdata_->a_wave_;
-
-//    }else if(simdata_->calc_dt_flag==0){
-
-//        time_step = simdata_->dt_;
-
-//        CFL = simdata_->a_wave_ * time_step / grid_->dx ;
-
-//    }else {
-
-//        FatalError("Wrong Calc_dt_flag");
-//    }
 
     return;
 }
@@ -136,17 +114,15 @@ void Euler2DSolver::InitSol(){
 
 void Euler2DSolver::UpdateResid(double **Resid_, double **Qc_){
 
-    //FatalError("Inside Update Resid in Euler Solver");
+    register int i,j;
+
+//    for(i=0; i<Nelem; i++)
+//        for(j=0; j<Ndof; j++)
+//            Qc[i][j] = Qc_[i][j];
 
     SetGhostVariables();
 
-    //FatalError("Finished setting Ghost Variables");
-
     if(scheme_order==2) Reconstruct_sol();
-
-    //FatalError("Finished Reconstruction");
-
-    register int i,j;
 
     // Boundary Face loop to calculate the common interface fluxes:
     //----------------------------------------------------
@@ -157,17 +133,37 @@ void Euler2DSolver::UpdateResid(double **Resid_, double **Qc_){
 
     for(j=0; j<Nbndfaces; j++){
 
+        if(grid_->facelist[j].Rcell<Nelem || grid_->facelist[j].bnd_type==0)
+            FatalErrorST("Problem with ghost elements");
+
+        nx = grid_->facelist[j].nx;
+        ny = grid_->facelist[j].ny;
+
         Compute_left_right_boundfacesol(j,&Ql[0],&Qr[0]);
 
+        //printf("\nFace: %d, bnd_type: %d, nx: %e ,ny: %e ",j,grid_->facelist[j].bnd_type, nx,ny);
+
         Compute_common_inviscidflux(&Ql[0],&Qr[0],nx,ny, &flux_com[j][0]);
+
+        //std::cin.get();
     }
 
     // Interior faces
     for(j=Nbndfaces; j<Nfaces; j++){
 
+        if(grid_->facelist[j].bnd_type!=0 || grid_->facelist[j].Rcell >=Nelem)
+            FatalErrorST("Problem with interior elements");
+
+        nx = grid_->facelist[j].nx;
+        ny = grid_->facelist[j].ny;
+
         Compute_left_right_facesol(j,&Ql[0],&Qr[0]);
 
+        //printf("\nFace: %d, bnd_type: %d, nx: %e ,ny: %e ",j,grid_->facelist[j].bnd_type, nx,ny);
+
         Compute_common_inviscidflux(&Ql[0],&Qr[0],nx,ny, &flux_com[j][0]);
+
+        //std::cin.get();
     }
 
     /* Face loop to update the Residuals in each respective cell
@@ -177,26 +173,52 @@ void Euler2DSolver::UpdateResid(double **Resid_, double **Qc_){
     // Set Residuals to zero before computing:
     Residulas_setZero(Resid_);
 
-    int iL,iR;
-    double Vol_l,Vol_r;
+    int iL=0,iR=0;
+    double Vol_l=0.,Vol_r=0.;
 
     double resid_temp[4]={0.,0.,0.,0.};
 
     // Note that there should be a negative sign added to all Residuals;
 
+//    // Bound Faces
+//    for(i=0; i<Nbndfaces; i++){
+
+//        iL = grid_->facelist[i].Lcell;
+//        Vol_l = grid_->elemlist[iL].Vc;
+
+//        compute_resid_OneFace(grid_->facelist[i].Af, &flux_com[i][0], &resid_temp[0]);
+
+//        for(j=0; j<Ndof; j++)
+//            Resid_[iL][j] += (resid_temp[j]/Vol_l);
+//    }
+
+//    // Interior Faces:
+
+//    for(i=Nbndfaces; i<Nfaces; i++){
+
+//        iL = grid_->facelist[i].Lcell;
+//        iR = grid_->facelist[i].Rcell;
+
+//        Vol_l = grid_->elemlist[iL].Vc;
+//        Vol_r = grid_->elemlist[iR].Vc;
+
+//        compute_resid_OneFace(grid_->facelist[i].Af, &flux_com[i][0], &resid_temp[0]);
+
+//        for(j=0; j<Ndof; j++){
+//            Resid_[iL][j] +=  ( resid_temp[j]/Vol_l);
+//            Resid_[iR][j] +=  (-resid_temp[j]/Vol_r);
+//        }
+//    }
+
     // Bound Faces
     for(i=0; i<Nbndfaces; i++){
 
         iL = grid_->facelist[i].Lcell;
-        Vol_l = grid_->elemlist[iL].Vc;
 
-        compute_resid_OneFace(i, &resid_temp[0]);
+        compute_resid_OneFace(grid_->facelist[i].Af, &flux_com[i][0], &resid_temp[0]);
 
-        for(j=0; j<Ndof; j++){
-            resid_temp[j] = (-resid_temp[j]/Vol_l); // to move it to the RHS of the equation
-
-            Resid_[iL][j] += resid_temp[j];
-        }
+        for(j=0; j<Ndof; j++)
+            Resid_[iL][j] += (resid_temp[j]);
     }
 
     // Interior Faces:
@@ -206,19 +228,11 @@ void Euler2DSolver::UpdateResid(double **Resid_, double **Qc_){
         iL = grid_->facelist[i].Lcell;
         iR = grid_->facelist[i].Rcell;
 
-        Vol_l = grid_->elemlist[iL].Vc;
-        Vol_r = grid_->elemlist[iR].Vc;
-
-        if(Vol_l==0 || Vol_r==0)
-            _compare(Vol_l,Vol_r);
-
-        compute_resid_OneFace(i, &resid_temp[0]);
+        compute_resid_OneFace(grid_->facelist[i].Af, &flux_com[i][0], &resid_temp[0]);
 
         for(j=0; j<Ndof; j++){
-            resid_temp[j] = -resid_temp[j]; // to move it to the RHS of the equation
-
-            Resid_[iL][j] +=   (resid_temp[j]/Vol_l);
-            Resid_[iR][j] +=  (-resid_temp[j]/Vol_r);
+            Resid_[iL][j] +=  ( resid_temp[j]);
+            Resid_[iR][j] +=  (-resid_temp[j]);
         }
     }
 
@@ -227,44 +241,40 @@ void Euler2DSolver::UpdateResid(double **Resid_, double **Qc_){
 
 void Euler2DSolver::SetGhostVariables(){
 
-    register int i;
+    register int i; int j=0;
 
     int iL,iR;
 
     double nx=0.0,ny=0.0;
 
-    for(i=Nelem; i<Nelem_extend; i++){
+    for(i=0; i<Nbndfaces; i++){
 
-        iL = grid_->facelist[i-Nelem].Lcell;
-        iR = grid_->facelist[i-Nelem].Rcell;
-        nx = grid_->facelist[i-Nelem].nx;
-        ny = grid_->facelist[i-Nelem].ny;
+        iL = grid_->facelist[i].Lcell;
+        iR = grid_->facelist[i].Rcell;
+        nx = grid_->facelist[i].nx;
+        ny = grid_->facelist[i].ny;
 
         if(simdata_->WallBC=="Extrapolation"){
-            int j=0;
+
             for(j=0; j<Ndof; j++) Qc[iR][j] = Qc[iL][j];
+
+            if(iR!=i+Nelem) { _compare(iR,i+Nelem); std::cin.get(); }
+
+            if(grid_->facelist[i].bnd_type==0)
+                FatalErrorST("face bndtype is wrong");
 
         }else{
 
-            if(grid_->elemlist[i].bnd_type==-1){ // wall B.C
-
-                /*if(iR!=i)
-            _compare(iR,i);
-
-            if(grid_->facelist[i-Nelem].bnd_type!=-1)
-                _print("face bndtype is wrong for inviscid wall"); */
+            if(grid_->facelist[i].bnd_type==-1){ // wall B.C
 
                 compute_GhostSol_inviscidWallBC(nx,ny,&Qc[iL][0],&Qc[iR][0]);
 
-            }else if(grid_->elemlist[i].bnd_type==-2){ // FarField B.C
+            }else if(grid_->facelist[i].bnd_type==-2){ // FarField B.C
 
-                /*if(iR!=i)
-            _compare(iR,i);
-
-            if(grid_->facelist[i-Nelem].bnd_type!=-2)
-                _print("face bndtype is wrong for farfield");*/
-
-                compute_GhostSol_farfieldBC(nx,ny,&Qc[iL][0],&Qc[iR][0]);
+                if(simdata_->FarFieldBC=="Extrapolation")
+                    for(j=0; j<Ndof; j++) Qc[iR][j] = Qc[iL][j];
+                else
+                    compute_GhostSol_farfieldBC(nx,ny,&Qc[iL][0],&Qc[iR][0]);
 
             }else{
                 FatalError_exit("This ghost cell boundary type is wrong");
@@ -276,28 +286,32 @@ void Euler2DSolver::SetGhostVariables(){
 }
 
 void Euler2DSolver::compute_GhostSol_inviscidWallBC(const double& nx, const double& ny
-                                                    ,const double *Ql, double *Qr){
+                                                    ,double *Ql, double *Qr){
 
     double ul=0.0,vl=0.0,Vnl,ur=0.0,vr=0.0;
 
     ul = Ql[1]/Ql[0];
     vl = Ql[2]/Ql[0];
 
-    Vnl = ul*nx + vl*ny; // normal component of left cell velocity vector
+    Vnl = (ul*nx + vl*ny); // normal component of left cell velocity vector
 
-    ur = ul - 2*Vnl * nx;
-    vr = vl - 2*Vnl * ny;
+    ur = ul - (2.*Vnl * nx);
+    vr = vl - (2.*Vnl * ny);
 
     Qr[0] = Ql[0];
     Qr[1] = Qr[0] * ur;
     Qr[2] = Qr[0] * vr;
     Qr[3] = Ql[3];   // since they are of same velocity magnitude and Pr=Pl
 
+    //printf("\nWall BC, rho: %e, rhoU: %e, rhoV: %e, E: %e", Qr[0],Qr[1],Qr[2],Qr[3]);
+
+    //std::cin.get();
+
     return;
 }
 
 void Euler2DSolver::compute_GhostSol_farfieldBC(const double& nx, const double& ny
-                                                ,const double *Ql, double *Qr){
+                                                ,double *Ql, double *Qr){
 
     if(simdata_->FarFieldBC=="Fixed"){
 
@@ -307,7 +321,11 @@ void Euler2DSolver::compute_GhostSol_farfieldBC(const double& nx, const double& 
         Qr[0] = rho;
         Qr[1] = rho*u;
         Qr[2] = rho*v;
-        Qr[3]=E;
+        Qr[3] = E;
+
+        //printf("\nFarField BC, rho: %e, rhoU: %e, rhoV: %e, E: %e", Qr[0],Qr[1],Qr[2],Qr[3]);
+
+        //std::cin.get();
 
     }else if(simdata_->FarFieldBC=="Characteristics"){
 
@@ -363,7 +381,7 @@ void Euler2DSolver::Compute_left_right_boundfacesol(const int& fID
     Xf = grid_->facelist[fID].Xf;
     Yf = grid_->facelist[fID].Yf;
     nx = grid_->facelist[fID].nx;
-    nx = grid_->facelist[fID].ny;
+    ny = grid_->facelist[fID].ny;
 
     Xcl = grid_->elemlist[iL].Xc;
     Ycl = grid_->elemlist[iL].Yc;
@@ -378,17 +396,21 @@ void Euler2DSolver::Compute_left_right_boundfacesol(const int& fID
     }
 
     if(simdata_->WallBC=="Extrapolation"){
-        int j=0;
+
         for(j=0; j<Ndof; j++) Qr_[j] = Ql_[j];
 
     }else{
+
         if(grid_->facelist[fID].bnd_type==-1){ // wall BC
 
             compute_GhostSol_inviscidWallBC(nx,ny,&Ql_[0],&Qr_[0]);
 
         }else if(grid_->facelist[fID].bnd_type==-2){ // FarField BC
 
-            compute_GhostSol_farfieldBC(nx,ny,&Ql_[0],&Qr_[0]);
+            if(simdata_->FarFieldBC=="Extrapolation")
+                for(j=0; j<Ndof; j++) Qr_[j] = Ql_[j];
+            else
+                compute_GhostSol_farfieldBC(nx,ny,&Ql_[0],&Qr_[0]);
         }
     }
 
@@ -418,17 +440,19 @@ void Euler2DSolver::Residulas_setZero(double** Residuals){
     return;
 }
 
-void Euler2DSolver::compute_resid_OneFace(const int &fID, double* resid_){
+void Euler2DSolver::compute_resid_OneFace(const double &face_area
+                                          ,double* face_flux_, double* resid_){
 
     int j=0;
 
     for(j=0; j<Ndof; j++)
-        resid_[j] = flux_com[fID][j] * grid_->facelist[fID].Af;
+        resid_[j] = (-1.0)* face_flux_[j] * face_area ;
+    // the minus sign is required to move it to the RHS of the equation
 
     return ;
 }
 
-void Euler2DSolver::Compute_common_inviscidflux(const double *Ql, const double *Qr
+void Euler2DSolver::Compute_common_inviscidflux(double *Ql, double *Qr
                                                    , const double& nx, const double& ny
                                                    , double* flux_){
 
@@ -447,36 +471,37 @@ void Euler2DSolver::Compute_common_inviscidflux(const double *Ql, const double *
     return;
 }
 
-void Euler2DSolver::Rusanov_flux(const double *Ql, const double *Qr
+void Euler2DSolver::Rusanov_flux(double *Ql, double *Qr
              , const double& nx, const double& ny, double* flux_){
 
     int j=0;
     double FL[4]={0.,0.,0.,0.}, FR[4]={0.,0.,0.,0.};
-    double Vn_abs,Vnl,Vnr,cl,cr,c,dQ=0.0;
+    double Vn_abs,Vnl,Vnr,pl,pr,c,dQ=0.0;
 
-//    Vnl = (Ql[1]/Ql[0])*nx + (Ql[2]/Ql[0])*ny;
-//    Vnr = (Qr[1]/Qr[0])*nx + (Qr[2]/Qr[0])*ny;
+    compute_normal_inViscidFlux(nx,ny,&Ql[0],&FL[0], Vnl,pl);
+    compute_normal_inViscidFlux(nx,ny,&Qr[0],&FR[0], Vnr,pr);
 
-    compute_normal_inViscidFlux(nx,ny,&Ql[0],&FL[0], Vnl,cl);
-    compute_normal_inViscidFlux(nx,ny,&Qr[0],&FR[0], Vnr,cr);
+    Vn_abs = fabs(Vnl+Vnr)/2.;
 
-    Vn_abs = abs(Vnl+Vnr)/2.;
+    //c = (cl+cr)/2.; //c=cl;
 
-    c = (cl+cr)/2.;
+    c = sqrt(gasdata_->gama *(pl+pr)/(Ql[0]+Qr[0]));
 
     for(j=0; j<Ndof; j++){
         dQ = Qr[j] - Ql[j];
-        flux_[j] = 0.5 * (FL[j] + FR[j] - (Vn_abs + c) * dQ ) ;
+        flux_[j] = 0.5 * ( FL[j] + FR[j] - (Vn_abs + c) * dQ ) ;
+
+        //printf("\ndQ: %e, FL[%d]: %e, FR[%d]: %e, |Vn|: %e ",dQ,j,FL[j],j,FR[j],Vn_abs);
     }
 
     return;
 }
 
 void Euler2DSolver::compute_normal_inViscidFlux(const double& nx, const double& ny
-                                                , const double *Q_, double *normInvflux_
-                                                , double& Vn, double& c){
+                                                , double *Q_, double *normInvflux_
+                                                , double& Vn, double& p){
 
-    double rho,u,v,p,E;
+    double rho,u,v,c,E;
     double gama_=gasdata_->gama;
 
     rho = Q_[0];
@@ -484,21 +509,165 @@ void Euler2DSolver::compute_normal_inViscidFlux(const double& nx, const double& 
     v = Q_[2]/Q_[0];
     E = Q_[3];
 
-    p = (gama_-1.) * ( E - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
+    p = (gama_-1.) * ( E - (0.5 * rho * ( pow(u,2) + pow(v,2) )) );
 
     c = sqrt(gama_*p/rho);
 
     Vn = u*nx + v*ny;
 
     normInvflux_[0] = rho * Vn;
-    normInvflux_[1] = rho * u * Vn + p*nx;
-    normInvflux_[1] = rho * v * Vn + p*ny;
+    normInvflux_[1] = (rho * u * Vn) + (p*nx);
+    normInvflux_[2] = (rho * v * Vn) + (p*ny);
     normInvflux_[3] = Vn*(E+p);
 
     return;
 }
 
+void Euler2DSolver::Compute_vertex_sol(){
 
+    register int i; int j,eID;
+
+    double rho=0.0,u=0.0,v=0.0,p=0.0,p_inf=0.0,rhoV_inf=0.,V_inf=0.,rho_inf,T,E;
+
+    for(i=0; i<Nnodes; i++){
+
+        Qv[i][0] =0.;
+        Qv[i][1] =0.;
+        Qv[i][2] =0.;
+        Qv[i][3] =0.;
+
+        for(j=0; j<grid_->Nnode_neighElem[i]; j++){
+
+            eID = grid_->node_to_elemlist[i][j];
+
+            gasdata_->CalculateFlowProperties(rho_inf,u,v,p_inf,T,E);
+
+            V_inf = sqrt(pow(u,2)+pow(v,2));
+
+            rhoV_inf= rho_inf * V_inf * V_inf ;
+
+            rho = Qc[eID][0];
+            u = Qc[eID][1]/Qc[eID][0];
+            v = Qc[eID][2]/Qc[eID][0];
+
+            p = (gasdata_->gama-1.) * ( Qc[eID][3] - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
+
+            Qv[i][0] += rho/rho_inf;
+            Qv[i][1] += u/V_inf;
+            Qv[i][2] += v/V_inf;
+            Qv[i][3] += ( 2.*(p-p_inf)/ rhoV_inf );
+        }
+
+        for(j=0; j<Ndof; j++)
+            Qv[i][j] = Qv[i][j] / grid_->Nnode_neighElem[i];
+    }
+
+    return;
+}
+
+void Euler2DSolver::CalclocalTimeStep(double *dt_cell_){
+
+    double *cell_radii=nullptr; // sum(|Vn|+c * Sf)
+
+    cell_radii = new double[Nelem];
+
+    register int i,j; int iL,iR;
+
+    double nx,ny,Sf,Vn;
+    double rho,u,v,p,E,c;
+    double gama_=gasdata_->gama;
+
+    double Ql_[4]={0.,0.,0.,0.},Qr_[4]={0.,0.,0.,0.};
+
+    for(i=0; i<Nelem; i++) cell_radii[i]=0.0;
+
+    for(i=0; i<Nbndfaces; i++){
+
+        iL = grid_->facelist[i].Lcell;
+        nx = grid_->facelist[i].nx;
+        ny = grid_->facelist[i].ny;
+        Sf = grid_->facelist[i].Af;
+
+        Compute_left_right_boundfacesol(i,Ql_,Qr_);
+
+        rho = Ql_[0];
+        u = Ql_[1]/Ql_[0];
+        v = Ql_[2]/Ql_[0];
+        E = Ql_[3];
+
+        p = (gama_-1.) * ( E - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
+
+        c = sqrt(gama_*p/rho);
+
+        Vn = u*nx + v*ny;
+
+        rho = Qr_[0];
+        u = Qr_[1]/Qr_[0];
+        v = Qr_[2]/Qr_[0];
+        E = Qr_[3];
+
+        p = (gama_-1.) * ( E - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
+
+        c += sqrt(gama_*p/rho);
+
+        Vn += (u*nx + v*ny);
+
+        Vn = fabs(Vn/2.);
+        c = c/2.;
+
+        cell_radii[iL] += ((Vn+c)*Sf);
+    }
+
+    for(i=Nbndfaces; i<Nfaces; i++){
+
+        iL = grid_->facelist[i].Lcell;
+        iR = grid_->facelist[i].Rcell;
+        nx = grid_->facelist[i].nx;
+        ny = grid_->facelist[i].ny;
+        Sf = grid_->facelist[i].Af;
+
+        Compute_left_right_facesol(i,Ql_,Qr_);
+
+        rho = Ql_[0];
+        u = Ql_[1]/Ql_[0];
+        v = Ql_[2]/Ql_[0];
+        E = Ql_[3];
+
+        p = (gama_-1.) * ( E - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
+
+        c = sqrt(gama_*p/rho);
+
+        Vn = u*nx + v*ny;
+
+        rho = Qr_[0];
+        u = Qr_[1]/Qr_[0];
+        v = Qr_[2]/Qr_[0];
+        E = Qr_[3];
+
+        p = (gama_-1.) * ( E - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
+
+        c += sqrt(gama_*p/rho);
+
+        Vn += (u*nx + v*ny);
+
+        Vn = fabs(Vn/2.);
+        c = c/2.;
+
+        cell_radii[iL] += ((Vn+c)*Sf);
+        cell_radii[iR] += ((Vn+c)*Sf);
+    }
+
+    for(i=0; i<Nelem; i++) {
+
+        cell_radii[i] = cell_radii[i] / (2.0 * grid_->elemlist[i].Vc);
+
+        dt_cell_[i] = CFL_ / cell_radii[i];
+    }
+
+    emptyarray(cell_radii);
+
+    return;
+}
 
 
 

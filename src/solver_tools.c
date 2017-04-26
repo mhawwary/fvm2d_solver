@@ -1,7 +1,7 @@
 
 #include"solver_tools.h"
 
-double L2norm(const int& Nelem_, const int& Ndof_per_elem, double** quantity){
+double L2norm(const int& Nelem_, const int& Ndof_per_elem, double** quantity, double* Vol){
 
     double L2norm_=0.0;
 
@@ -9,9 +9,9 @@ double L2norm(const int& Nelem_, const int& Ndof_per_elem, double** quantity){
 
     for(i=0; i<Nelem_; i++)
         for(j=0; j<Ndof_per_elem; j++)
-            L2norm_ += pow(quantity[i][j],2);
+            L2norm_ += pow(quantity[i][j]*Vol[i],2);
 
-    L2norm_ = sqrt(L2norm_/Ndof_per_elem);
+    L2norm_ = sqrt(L2norm_/(Ndof_per_elem*Nelem_));
 
     return L2norm_;
 }
