@@ -53,6 +53,7 @@ struct SimData {
     int forces_print_freq=10;
     int fields_print_freq=10;
     int conv_hist_pfreq=10;
+    double conv_threshold=1e-15;
 
     double dt_ = 1e-3;  // dt time step
     double t_init_ = 0;  // initial time

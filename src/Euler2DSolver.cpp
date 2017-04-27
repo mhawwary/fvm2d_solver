@@ -46,7 +46,7 @@ void Euler2DSolver::setup_solver(MeshData*& meshdata_, SimData& osimdata_
     Qv = new double*[Nnodes];
 
     for(i=0; i<Nnodes; i++)
-        Qv[i]    = new double[Ndof];
+        Qv[i]    = new double[Ndof+1];
 
     flux_com = new double*[Nfaces];
 
@@ -116,9 +116,6 @@ void Euler2DSolver::UpdateResid(double **Resid_, double **Qc_){
 
     register int i,j;
 
-//    for(i=0; i<Nelem; i++)
-//        for(j=0; j<Ndof; j++)
-//            Qc[i][j] = Qc_[i][j];
 
     SetGhostVariables();
 
@@ -133,37 +130,23 @@ void Euler2DSolver::UpdateResid(double **Resid_, double **Qc_){
 
     for(j=0; j<Nbndfaces; j++){
 
-        if(grid_->facelist[j].Rcell<Nelem || grid_->facelist[j].bnd_type==0)
-            FatalErrorST("Problem with ghost elements");
-
         nx = grid_->facelist[j].nx;
         ny = grid_->facelist[j].ny;
 
         Compute_left_right_boundfacesol(j,&Ql[0],&Qr[0]);
 
-        //printf("\nFace: %d, bnd_type: %d, nx: %e ,ny: %e ",j,grid_->facelist[j].bnd_type, nx,ny);
-
         Compute_common_inviscidflux(&Ql[0],&Qr[0],nx,ny, &flux_com[j][0]);
-
-        //std::cin.get();
     }
 
     // Interior faces
     for(j=Nbndfaces; j<Nfaces; j++){
-
-        if(grid_->facelist[j].bnd_type!=0 || grid_->facelist[j].Rcell >=Nelem)
-            FatalErrorST("Problem with interior elements");
 
         nx = grid_->facelist[j].nx;
         ny = grid_->facelist[j].ny;
 
         Compute_left_right_facesol(j,&Ql[0],&Qr[0]);
 
-        //printf("\nFace: %d, bnd_type: %d, nx: %e ,ny: %e ",j,grid_->facelist[j].bnd_type, nx,ny);
-
         Compute_common_inviscidflux(&Ql[0],&Qr[0],nx,ny, &flux_com[j][0]);
-
-        //std::cin.get();
     }
 
     /* Face loop to update the Residuals in each respective cell
@@ -174,13 +157,12 @@ void Euler2DSolver::UpdateResid(double **Resid_, double **Qc_){
     Residulas_setZero(Resid_);
 
     int iL=0,iR=0;
-    double Vol_l=0.,Vol_r=0.;
 
     double resid_temp[4]={0.,0.,0.,0.};
 
     // Note that there should be a negative sign added to all Residuals;
 
-//    // Bound Faces
+/*    // Bound Faces
 //    for(i=0; i<Nbndfaces; i++){
 
 //        iL = grid_->facelist[i].Lcell;
@@ -208,7 +190,7 @@ void Euler2DSolver::UpdateResid(double **Resid_, double **Qc_){
 //            Resid_[iL][j] +=  ( resid_temp[j]/Vol_l);
 //            Resid_[iR][j] +=  (-resid_temp[j]/Vol_r);
 //        }
-//    }
+//    } */
 
     // Bound Faces
     for(i=0; i<Nbndfaces; i++){
@@ -258,10 +240,10 @@ void Euler2DSolver::SetGhostVariables(){
 
             for(j=0; j<Ndof; j++) Qc[iR][j] = Qc[iL][j];
 
-            if(iR!=i+Nelem) { _compare(iR,i+Nelem); std::cin.get(); }
+            /*if(iR!=i+Nelem) { _compare(iR,i+Nelem); std::cin.get(); }
 
             if(grid_->facelist[i].bnd_type==0)
-                FatalErrorST("face bndtype is wrong");
+                FatalErrorST("face bndtype is wrong");*/
 
         }else{
 
@@ -271,10 +253,7 @@ void Euler2DSolver::SetGhostVariables(){
 
             }else if(grid_->facelist[i].bnd_type==-2){ // FarField B.C
 
-                if(simdata_->FarFieldBC=="Extrapolation")
-                    for(j=0; j<Ndof; j++) Qc[iR][j] = Qc[iL][j];
-                else
-                    compute_GhostSol_farfieldBC(nx,ny,&Qc[iL][0],&Qc[iR][0]);
+                compute_GhostSol_farfieldBC(nx,ny,&Qc[iL][0],&Qc[iR][0]);
 
             }else{
                 FatalError_exit("This ghost cell boundary type is wrong");
@@ -303,10 +282,6 @@ void Euler2DSolver::compute_GhostSol_inviscidWallBC(const double& nx, const doub
     Qr[2] = Qr[0] * vr;
     Qr[3] = Ql[3];   // since they are of same velocity magnitude and Pr=Pl
 
-    //printf("\nWall BC, rho: %e, rhoU: %e, rhoV: %e, E: %e", Qr[0],Qr[1],Qr[2],Qr[3]);
-
-    //std::cin.get();
-
     return;
 }
 
@@ -322,10 +297,6 @@ void Euler2DSolver::compute_GhostSol_farfieldBC(const double& nx, const double& 
         Qr[1] = rho*u;
         Qr[2] = rho*v;
         Qr[3] = E;
-
-        //printf("\nFarField BC, rho: %e, rhoU: %e, rhoV: %e, E: %e", Qr[0],Qr[1],Qr[2],Qr[3]);
-
-        //std::cin.get();
 
     }else if(simdata_->FarFieldBC=="Characteristics"){
 
@@ -407,10 +378,7 @@ void Euler2DSolver::Compute_left_right_boundfacesol(const int& fID
 
         }else if(grid_->facelist[fID].bnd_type==-2){ // FarField BC
 
-            if(simdata_->FarFieldBC=="Extrapolation")
-                for(j=0; j<Ndof; j++) Qr_[j] = Ql_[j];
-            else
-                compute_GhostSol_farfieldBC(nx,ny,&Ql_[0],&Qr_[0]);
+            compute_GhostSol_farfieldBC(nx,ny,&Ql_[0],&Qr_[0]);
         }
     }
 
@@ -483,15 +451,11 @@ void Euler2DSolver::Rusanov_flux(double *Ql, double *Qr
 
     Vn_abs = fabs(Vnl+Vnr)/2.;
 
-    //c = (cl+cr)/2.; //c=cl;
-
     c = sqrt(gasdata_->gama *(pl+pr)/(Ql[0]+Qr[0]));
 
     for(j=0; j<Ndof; j++){
         dQ = Qr[j] - Ql[j];
         flux_[j] = 0.5 * ( FL[j] + FR[j] - (Vn_abs + c) * dQ ) ;
-
-        //printf("\ndQ: %e, FL[%d]: %e, FR[%d]: %e, |Vn|: %e ",dQ,j,FL[j],j,FR[j],Vn_abs);
     }
 
     return;
@@ -535,6 +499,7 @@ void Euler2DSolver::Compute_vertex_sol(){
         Qv[i][1] =0.;
         Qv[i][2] =0.;
         Qv[i][3] =0.;
+        Qv[i][4] =0.;
 
         for(j=0; j<grid_->Nnode_neighElem[i]; j++){
 
@@ -556,6 +521,7 @@ void Euler2DSolver::Compute_vertex_sol(){
             Qv[i][1] += u/V_inf;
             Qv[i][2] += v/V_inf;
             Qv[i][3] += ( 2.*(p-p_inf)/ rhoV_inf );
+            Qv[i][4] += sqrt((u*u)+(v*v)) / sqrt(gasdata_->gama * p /rho);
         }
 
         for(j=0; j<Ndof; j++)

@@ -64,20 +64,6 @@ void ExplicitTimeSolver::Reset_time_solver(){
 
 void ExplicitTimeSolver::SolveOneStep(double **qn_){
 
-    //space_solver_->UpdateResid(resid,qn_);
-
-    int i,j;
-
-//    for(i=0; i<Nelem; i++){
-//        printf("\nElem: %d , ",i);
-//        for(j=0; j<Ndof; j++){
-//            printf("%e ",resid[i][j]*meshdata_->elemlist[i].Vc);
-//        }
-//        std::cin.get();
-//    }
-
-
-
     switch (RK_order_) {
 
     case 1:
@@ -139,14 +125,6 @@ void ExplicitTimeSolver::SSPRK22(double **q_){
             q_[j][k] = 0.5 * ( q_temp[j][k] +  q_[j][k]
                                       + dt_elem_[j] * (resid[j][k]/meshdata_->elemlist[j].Vc) );
 
-    std::ofstream output1 ("./post_process/CellCenterSolRK2.dat");
-
-    for(j=0; j<Nelem; j++){
-        for(k=0; k<Ndof; k++)
-            output1 << q_[j][k] << " ";
-        output1 <<"\n";
-    }
-
     space_solver_->UpdateResid(resid,q_);
 
     return;
@@ -185,14 +163,6 @@ void ExplicitTimeSolver::SSPRK33(double **q_){
         for(k=0; k<Ndof; k++)
             q_[j][k] =  ( q_temp[j][k]/3. )
                     + 2. * ( q_[j][k] +  dt_elem_[j] * (resid[j][k]/meshdata_->elemlist[j].Vc) ) / 3.;
-
-    std::ofstream output1 ("./post_process/CellCenterSolRK3.dat");
-
-    for(j=0; j<Nelem; j++){
-        for(k=0; k<Ndof; k++)
-            output1 << q_[j][k] << " ";
-        output1 <<"\n";
-    }
 
     space_solver_->UpdateResid(resid,q_);
 
@@ -260,8 +230,6 @@ double ExplicitTimeSolver::GetContinuityResNorm(){
 
     for(i=0; i<Nelem; i++) resid_density[i] = resid[i][0] / meshdata_->elemlist[i].Vc;
 
-    //for(i=0; i<Nelem; i++) resid_density[i] = resid[i][0] ;
-
     resid_norm_ = L2norm_perdof(Nelem,resid_density);
 
     emptyarray(resid_density);
@@ -278,7 +246,6 @@ double ExplicitTimeSolver::GetMomentumXResNorm(){
     register int i;
 
     for(i=0; i<Nelem; i++) resid_momentum[i] = resid[i][1]/meshdata_->elemlist[i].Vc;
-    //for(i=0; i<Nelem; i++) resid_momentum[i] = resid[i][1];
 
     resid_norm_ = L2norm_perdof(Nelem,resid_momentum);
 
@@ -296,7 +263,6 @@ double ExplicitTimeSolver::GetMomentumYResNorm(){
     register int i;
 
     for(i=0; i<Nelem; i++) resid_momentum [i] = resid[i][2]/ meshdata_->elemlist[i].Vc;
-    //for(i=0; i<Nelem; i++) resid_momentum [i] = resid[i][2];
 
     resid_norm_ = L2norm_perdof(Nelem,resid_momentum);
 
@@ -314,7 +280,6 @@ double ExplicitTimeSolver::GetEnergyResNorm(){
     register int i;
 
     for(i=0; i<Nelem; i++) resid_energy [i] = resid[i][3]/ meshdata_->elemlist[i].Vc;
-    //for(i=0; i<Nelem; i++) resid_energy [i] = resid[i][3];
 
     resid_norm_ = L2norm_perdof(Nelem,resid_energy);
 

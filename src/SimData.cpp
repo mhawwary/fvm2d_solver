@@ -16,6 +16,7 @@ void SimData::Parse(const std::string &fname){
     forces_print_freq=gp_input("Simulation/forces_print_freq",10);
     fields_print_freq=gp_input("Simulation/fields_print_freq",10);
     conv_hist_pfreq =gp_input("Simulation/conv_hist_print_freq",10);
+    conv_threshold = gp_input("Simulation/conv_criteria",1e-15);
 
     scheme_order=gp_input("space_solver/scheme_order",1);
     ReimannSolver_type_ = gp_input("space_solver/Riemann_solver","Rusanov");

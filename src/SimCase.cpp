@@ -119,7 +119,7 @@ void SimCase::RunSim(){
 
     double dt_min,dt_max;
 
-    double Resid_norm_=10.0, cont_Resid_norm,Xmom_Resid_norm,Ymom_Resid_norm,Energy_Resid_norm;
+    double cont_Resid_norm,Xmom_Resid_norm,Ymom_Resid_norm,Energy_Resid_norm;
     double **Qv=nullptr;
 
     int n=0;
@@ -128,26 +128,25 @@ void SimCase::RunSim(){
     //----------------------------------------------
     time_solver->ComputeInitialResid(fvm_space_solver->GetNumSolution());
     time_solver->SolveOneStep(fvm_space_solver->GetNumSolution());
-    n=time_solver->GetIter();
+    n=time_solver->GetIter();  // update iteration number
 
-    Resid_norm_= time_solver->GetResNorm();
     cont_Resid_norm = time_solver->GetContinuityResNorm();
     Xmom_Resid_norm = time_solver->GetMomentumXResNorm();
     Ymom_Resid_norm = time_solver->GetMomentumYResNorm();
     Energy_Resid_norm = time_solver->GetEnergyResNorm();
 
-    printf("\nIter: %d,  Resid_sum:%e , rho:%e, rhoU:%e, rhoV:%e, E:%e"
-           ,n,Resid_norm_,cont_Resid_norm
+    printf("\nIter: %d, rho:%e, rhoU:%e, rhoV:%e, E:%e"
+           ,n,cont_Resid_norm
            , Xmom_Resid_norm,Ymom_Resid_norm
            ,Energy_Resid_norm);
 
-    dump_resid_norm(n,Resid_norm_,cont_Resid_norm
+    dump_resid_norm(n,cont_Resid_norm
                     ,Xmom_Resid_norm,Ymom_Resid_norm
                     ,Energy_Resid_norm);
 
     // Main Solution Loop
 
-    while (n<1e7){
+    while (cont_Resid_norm>simdata.conv_threshold){
 
             time_solver->SolveOneStep(fvm_space_solver->GetNumSolution());
 
@@ -155,18 +154,18 @@ void SimCase::RunSim(){
 
             if(n%simdata.conv_hist_pfreq==0){
 
-                Resid_norm_= time_solver->GetResNorm();
+                //Resid_norm_= time_solver->GetResNorm();
                 cont_Resid_norm = time_solver->GetContinuityResNorm();
                 Xmom_Resid_norm = time_solver->GetMomentumXResNorm();
                 Ymom_Resid_norm = time_solver->GetMomentumYResNorm();
                 Energy_Resid_norm = time_solver->GetEnergyResNorm();
 
-                printf("\nIter: %d,  Resid_sum:%e , rho:%e, rhoU:%e, rhoV:%e, E:%e"
-                       ,n,Resid_norm_,cont_Resid_norm
+                printf("\nIter: %d,  rho:%e, rhoU:%e, rhoV:%e, E:%e"
+                       ,n,cont_Resid_norm
                        , Xmom_Resid_norm,Ymom_Resid_norm
                        ,Energy_Resid_norm);
 
-                dump_resid_norm(n,Resid_norm_,cont_Resid_norm
+                dump_resid_norm(n,cont_Resid_norm
                                 ,Xmom_Resid_norm,Ymom_Resid_norm
                                 ,Energy_Resid_norm);
 
@@ -176,7 +175,7 @@ void SimCase::RunSim(){
                     dump_wall_data(Qv);
                 }
 
-                if(simdata.use_local_timeStep==1 && n<=5000){
+                if(simdata.use_local_timeStep==1 && n<=2000){
                     time_solver->update_local_timestep();
                     dt_min = time_solver->getdt_min();
                     dt_max = time_solver->getdt_max();
@@ -184,33 +183,23 @@ void SimCase::RunSim(){
                 }
             }
 
-//            if(n%100==1) {
-//                printf("\nIter: %d,  Resid:%e , ResidC:%e, ResidX:%e, ResidY:%e, ResidEnergy:%e"
-//                       ,n-1,Resid_norm_,cont_Resid_norm, Xmom_Resid_norm,Ymom_Resid_norm,Energy_Resid_norm);
-//                if(simdata.use_local_timeStep==1){
-//                dt_min = time_solver->getdt_min();
-//                dt_max = time_solver->getdt_max();
-//                printf("\nMinimum dt: %e,  Maximum dt: %e",dt_min, dt_max);
-//                }
-//            }
-
             if(n>5e7) break;
         }
 
     // Printing the final Residual:
     //------------------------------------
-    Resid_norm_= time_solver->GetResNorm();
+    //Resid_norm_= time_solver->GetResNorm();
     cont_Resid_norm = time_solver->GetContinuityResNorm();
     Xmom_Resid_norm = time_solver->GetMomentumXResNorm();
     Ymom_Resid_norm = time_solver->GetMomentumYResNorm();
     Energy_Resid_norm = time_solver->GetEnergyResNorm();
 
-    printf("\nIter: %d,  Resid_sum:%e , rho:%e, rhoU:%e, rhoV:%e, E:%e"
-           ,n,Resid_norm_,cont_Resid_norm
+    printf("\nIter: %d, rho:%e, rhoU:%e, rhoV:%e, E:%e\n\n"
+           ,n,cont_Resid_norm
            , Xmom_Resid_norm,Ymom_Resid_norm
            ,Energy_Resid_norm);
 
-    dump_resid_norm(n,Resid_norm_,cont_Resid_norm
+    dump_resid_norm(n,cont_Resid_norm
                     ,Xmom_Resid_norm,Ymom_Resid_norm
                     ,Energy_Resid_norm);
 
@@ -242,20 +231,34 @@ void SimCase::logo() {
     return ;
 }
 
-void SimCase::dump_resid_norm(const int& iter_, double& resid_norm, double& cont_resid
-                              ,double& Xmom_resid, double& Ymom_resid, double& Energy_resid){
-
+void SimCase::dump_resid_norm(const int& iter_, double& cont_resid
+                              ,double& Xmom_resid, double& Ymom_resid,
+                              double& Energy_resid){
     char* fname=nullptr;
     fname =new char[100];
 
     sprintf(fname,"%sresidual_hist.dat",simdata.case_postproc_dir.c_str());
 
-    FILE*  outfile=fopen(fname,"at+");
+    static int check=0;
 
-    fprintf(outfile,"%d %e %e %e %e %e\n",iter_,resid_norm,cont_resid
-            ,Xmom_resid,Ymom_resid,Energy_resid);
+    if(check==0){
 
-    fclose(outfile);
+        FILE*  outfile1=fopen(fname,"w");
+
+        fprintf(outfile1,"%d %e %e %e %e\n",iter_,cont_resid
+                    ,Xmom_resid,Ymom_resid,Energy_resid);
+
+        fclose(outfile1); check++;
+
+    }else{
+
+        FILE*  outfile=fopen(fname,"at+");
+
+        fprintf(outfile,"%d %e %e %e %e\n",iter_,cont_resid
+                ,Xmom_resid,Ymom_resid,Energy_resid);
+
+        fclose(outfile);
+    }
 
     emptyarray(fname);
 
@@ -277,16 +280,13 @@ void SimCase::dump_wall_data(double **Qv){
 
     FILE*  outfile1=fopen(fname,"wt");
 
-    fprintf(outfile1, "VARIABLES = \"X\",\"Y\",\"RHO\",\"u\",\"v\",\"P\",\"M\"");
+    fprintf(outfile1, "VARIABLES = \"X\",\"Y\",\"RHO\",\"u\",\"v\",\"Cp\",\"M\"");
 
     for(i=0; i<grid_data->NupperWallnodes; i++){
         nID = grid_data->upper_wall_nodelist[i];
 
-        c= sqrt(gasdata.gama*Qv[nID][3]/Qv[nID][0]);
-        M = sqrt( pow(Qv[nID][1],2)+pow(Qv[nID][2],2) ) / c;
-
         fprintf(outfile1,"\n%e %e %e %e %e %e %e",grid_data->Xn[nID] ,grid_data->Yn[nID]
-                , Qv[nID][0], Qv[nID][1], Qv[nID][2], Qv[nID][3], M);
+                , Qv[nID][0], Qv[nID][1], Qv[nID][2], Qv[nID][3], Qv[nID][4]);
     }
 
     fclose(outfile1);
@@ -298,16 +298,13 @@ void SimCase::dump_wall_data(double **Qv){
 
     FILE*  outfile=fopen(fname,"wt");
 
-    fprintf(outfile, "VARIABLES = \"X\",\"Y\",\"RHO\",\"u\",\"v\",\"P\",\"M\"");
+    fprintf(outfile, "VARIABLES = \"X\",\"Y\",\"RHO\",\"u\",\"v\",\"Cp\",\"M\"");
 
     for(i=0; i<grid_data->NlowerWallnodes; i++){
         nID = grid_data->lower_wall_nodelist[i];
 
-        c= sqrt(gasdata.gama*Qv[nID][3]/Qv[nID][0]);
-        M = sqrt( pow(Qv[nID][1],2)+pow(Qv[nID][2],2) ) / c;
-
         fprintf(outfile,"\n%e %e %e %e %e %e %e",grid_data->Xn[nID] ,grid_data->Yn[nID]
-                , Qv[nID][0], Qv[nID][1], Qv[nID][2], Qv[nID][3], M);
+                , Qv[nID][0], Qv[nID][1], Qv[nID][2], Qv[nID][3],  Qv[nID][4]);
     }
 
     fclose(outfile);
