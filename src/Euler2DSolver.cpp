@@ -387,13 +387,31 @@ void Euler2DSolver::Compute_left_right_boundfacesol(const int& fID
 
 void Euler2DSolver::Reconstruct_sol(){
 
-    register int i; int j;
+    register int i; int j,k,fID,iL,iR,ii;
+    double dUx=0.0,dUy=0.0,dU=0.0;
 
     for(i=0; i<Nelem; i++){
 
         for(j=0; j<Ndof; j++){
-            dQdx[i][j] = 0.0;
-            dQdy[i][j] = 0.0;
+
+            dUx = 0.0; dUy=0.0;
+
+            for(k=0; k<grid_->elemlist[i].n_local_faces; k++){
+
+                fID = grid_->elemlist[i].to_face[k];
+                iL = grid_->facelist[fID].Lcell;
+                iR = grid_->facelist[fID].Rcell;
+
+                if(iL!=i) ii=iL;
+                else ii=iR;
+
+                dU = ( Qc[ii][j] - Qc[i][j] );
+                dUx += dU * grid_->elemlist[i].DX[k];
+                dUy += dU * grid_->elemlist[i].DY[k];
+            }
+
+            dQdx[i][j] = grid_->Iyy[i] * dUx - grid_->Ixy[i] * dUy;
+            dQdy[i][j] = grid_->Ixy[i] * dUx - grid_->Ixx[i] * dUy;
         }
     }
 
@@ -487,11 +505,33 @@ void Euler2DSolver::compute_normal_inViscidFlux(const double& nx, const double& 
     return;
 }
 
+void Euler2DSolver::evaluate_sol(double &Xp, double &Yp, const int& eID, double *qq_){
+
+    int j;
+
+    double Xc=grid_->elemlist[eID].Xc;
+    double Yc=grid_->elemlist[eID].Yc;
+
+    if(scheme_order==1){
+        for(j=0; j<Ndof; j++)  qq_[j] = Qc[eID][j];
+
+    }else if(scheme_order==2){
+
+        for(j=0; j<Ndof; j++){
+            qq_[j] = Qc[eID][j] + dQdx[eID][j] * (Xp-Xc) + dQdy[eID][j] * (Yp-Yc);
+        }
+    }
+
+    return;
+}
+
 void Euler2DSolver::Compute_vertex_sol(){
 
-    register int i; int j,eID;
+    register int i; int j,eID,iL,fID;
 
     double rho=0.0,u=0.0,v=0.0,p=0.0,p_inf=0.0,rhoV_inf=0.,V_inf=0.,rho_inf,T,E;
+    double qq_[4] ={0.,0.,0.,0.};
+    double nx,ny;
 
     for(i=0; i<Nnodes; i++){
 
@@ -511,11 +551,30 @@ void Euler2DSolver::Compute_vertex_sol(){
 
             rhoV_inf= rho_inf * V_inf * V_inf ;
 
-            rho = Qc[eID][0];
-            u = Qc[eID][1]/Qc[eID][0];
-            v = Qc[eID][2]/Qc[eID][0];
+            if(eID>=Nelem){
 
-            p = (gasdata_->gama-1.) * ( Qc[eID][3] - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
+                fID = eID-Nelem;
+                iL = grid_->facelist[fID].Lcell;
+                nx = grid_->facelist[fID].nx;
+                ny = grid_->facelist[fID].ny;
+
+                evaluate_sol(grid_->Xn[i],grid_->Yn[i],iL, &qq_[0]);
+
+                if(grid_->facelist[fID].bnd_type==-1)
+                    compute_GhostSol_inviscidWallBC(nx,ny,&qq_[0],&qq_[0]); // becareful of debendency between ql,qr
+                else if(grid_->facelist[fID].bnd_type==-2)
+                    compute_GhostSol_farfieldBC(nx,ny,&qq_[0],&qq_[0]);
+                else
+                    FatalError("Wrong face boundary condition for vertex solution");
+            }else{
+                evaluate_sol(grid_->Xn[i],grid_->Yn[i],eID, &qq_[0]);
+            }
+
+            rho = qq_[0];
+            u = qq_[1]/qq_[0];
+            v = qq_[2]/qq_[0];
+
+            p = (gasdata_->gama-1.) * ( qq_[3] - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
 
             Qv[i][0] += rho/rho_inf;
             Qv[i][1] += u/V_inf;

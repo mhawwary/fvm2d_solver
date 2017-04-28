@@ -125,7 +125,9 @@ struct Elem{
 
         emptyarray(to_face);
         emptyarray(to_node);
-        emptyarray(neigh_eID);
+        //emptyarray(neigh_eID);
+        emptyarray(DX);
+        emptyarray(DY);
     }
 
     bool isbound=false;  // true if it is a boundary elem
@@ -142,12 +144,17 @@ struct Elem{
     int n_local_faces = 4; // no. of elem faces
     int n_local_nodes = 4; // no. of elem nodes
 
-    int *neigh_eID=nullptr; // neighbour elements ID
+    int Nneigh_elem=1;
+
+    //int *to_neigh_elem=nullptr; // neighbour elements ID
 
     double Vc=1.0;  // cell volume
 
     double Xc=0.0; // cell center xc
     double Yc=0.0; // cell center yc
+
+    double *DX=nullptr;
+    double *DY=nullptr;
 
 };
 
@@ -188,6 +195,11 @@ struct MeshData{
 
         emptyarray(Xn);
         emptyarray(Yn);
+
+        emptyarray(Ixx);
+        emptyarray(Iyy);
+        emptyarray(Ixy);
+
     }
 
     int Nnodes=0;
@@ -222,8 +234,15 @@ struct MeshData{
     int *lower_wall_nodelist=nullptr;
 
     int **node_to_elemlist=nullptr;
+    int **node_to_facelist=nullptr;
 
     int *Nnode_neighElem=nullptr;
+
+    // Least Squares Reconstruction Data:
+    double *Ixx = nullptr;
+    double *Iyy = nullptr;
+    double *Ixy = nullptr;
+
 
 //    std::map <int, int> elem_gid_to_bid;  // map from global ID to bound ID
 //    std::map <int, int> elem_gid_to_intId;  // map from global ID to interior ID

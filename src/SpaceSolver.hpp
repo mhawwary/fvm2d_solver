@@ -84,6 +84,9 @@ public:
 
 protected:
 
+   virtual void evaluate_sol(double &Xp, double &Yp
+                             , const int& eID, double *qq_)=0;
+
    /* These pointers are passed to the space solver
    * and is not supposed to be freed in this scope
    */
@@ -108,7 +111,7 @@ protected:
 
    /* Locally defined arrays and can be freed in this scope */
 
-   double **Qc=nullptr;      // Nelem * Ndof long solution array
+   double **Qc=nullptr;      // Nelem * Ndof long solution array ( at cell centers )
 
    double **dQdx=nullptr;
    double **dQdy=nullptr;

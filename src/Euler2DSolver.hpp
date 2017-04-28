@@ -30,6 +30,9 @@ public:
 
     virtual void CalclocalTimeStep(double* dt_cell_);
 
+    virtual void evaluate_sol(double &Xp, double &Yp
+                              , const int& eID, double *qq_);
+
 protected:
 
     void compute_resid_OneFace(const double &Area_face

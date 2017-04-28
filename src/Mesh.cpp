@@ -239,11 +239,11 @@ void Mesh::generate_meshData(){
 
     compute_faceData();
 
-    //printf("\nFinished computing Face Data\n");
-
     compute_elemData();
 
     compute_wallNodes();
+
+    compute_LSreconstruction_metrics();
 
     return;
 
@@ -529,6 +529,27 @@ void Mesh::compute_elemData(){
 
     printf("\nNtriangles: %d,  Nquads: %d,  Nother:  %d\n",Ntri,Nquad,Nothers);
 
+    // Calculation of Ghost cells geometric data:
+    //---------------------------------------------
+    double Xf,Yf,Xc,Yc,nx,ny;
+
+    for(j=0; j<grid_data_->Nbndfaces; j++){
+        iL = grid_data_->facelist[j].Lcell;
+        iR = grid_data_->facelist[j].Rcell;
+        Xf = grid_data_->facelist[j].Xf;
+        Yf = grid_data_->facelist[j].Yf;
+        nx = grid_data_->facelist[j].nx;
+        ny = grid_data_->facelist[j].ny;
+
+        Xc = grid_data_->elemlist[iL].Xc;
+        Yc = grid_data_->elemlist[iL].Yc;
+
+        grid_data_->elemlist[iR].Vc = grid_data_->elemlist[iL].Vc;
+
+        grid_data_->elemlist[iR].Xc = Xc*((ny*ny)-(nx*nx)) -2*Yc*nx*ny - Yf*nx + Xf *(1.0+ny) ;
+        grid_data_->elemlist[iR].Yc = Yc*((nx*nx)-(ny*ny)) -2*Xc*nx*ny - Xf*nx + Yf *(1.0-ny) ;
+    }
+
     emptyarray(elem_to_face_set);
     emptyarray(elem_to_node_set);
     emptyarray(node_to_elem_set);
@@ -596,6 +617,61 @@ void Mesh::compute_cell_volume_center(const int &ii){
      * "Improved Formulation for Geometric Properties of Arbitrary Polyhedra",
      * Z.J.Wang, AIAA Journal 1999
      * */
+
+    return;
+}
+
+void Mesh::compute_LSreconstruction_metrics(){
+
+    register int j;
+
+    int i=0,fID=0,iL,iR,ii;
+
+    double Xj=0.0,Xn=0.0,Yj=0.0,Yn=0.0;
+
+    grid_data_->Ixx = new double[grid_data_->Nelem];
+    grid_data_->Iyy = new double[grid_data_->Nelem];
+    grid_data_->Ixy = new double[grid_data_->Nelem];
+    double IXY = 0.0;
+
+    for(j=0; j<grid_data_->Nelem; j++){
+
+        grid_data_->Ixx[j] = 0.0;
+        grid_data_->Iyy[j] = 0.0;
+        grid_data_->Ixy[j] = 0.0;
+        IXY = 0.0;
+
+        Xj = grid_data_->elemlist[j].Xc;
+        Yj = grid_data_->elemlist[j].Yc;
+
+        grid_data_->elemlist[j].DX = new double[grid_data_->elemlist[j].n_local_faces];
+        grid_data_->elemlist[j].DY = new double[grid_data_->elemlist[j].n_local_faces];
+
+        for(i=0; i<grid_data_->elemlist[j].n_local_faces; i++){
+
+            fID = grid_data_->elemlist[j].to_face[i];
+            iL = grid_data_->facelist[fID].Lcell;
+            iR = grid_data_->facelist[fID].Rcell;
+
+            if(iL!=j) ii=iL;
+            else ii=iR;
+
+            Xn = grid_data_->elemlist[ii].Xc;
+            Yn = grid_data_->elemlist[ii].Yc;
+
+            grid_data_->Ixx[j] += pow((Xn-Xj),2);
+            grid_data_->Iyy[j] += pow((Yn-Yj),2);
+            grid_data_->Ixy[j] += ( (Xn-Xj) * (Yn-Yj) );
+
+            grid_data_->elemlist[j].DX[i] = (grid_data_->elemlist[ii].Xc - grid_data_->elemlist[j].Xc);
+            grid_data_->elemlist[j].DY[i] = (grid_data_->elemlist[ii].Yc - grid_data_->elemlist[j].Yc);
+        }
+
+        IXY = 1.0/( (grid_data_->Ixx[j]*grid_data_->Iyy[j]) - pow(grid_data_->Ixy[j],2) ) ;
+        grid_data_->Ixx[j] = IXY * grid_data_->Ixx[j];
+        grid_data_->Iyy[j] = IXY * grid_data_->Iyy[j];
+        grid_data_->Ixy[j] = IXY * grid_data_->Ixy[j];
+    }
 
     return;
 }

@@ -25,6 +25,7 @@ protected:
     void compute_faceData();
     void compute_elemData();
     void compute_wallNodes();
+    void compute_LSreconstruction_metrics();
 
     void compute_cell_volume_center(const int& cellID);
 

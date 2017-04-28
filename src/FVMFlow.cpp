@@ -6,7 +6,10 @@
 int main(int argc, char** argv){
 
 
-    if (argc < 2) { std::cout << "ERROR: No input file specified ... " << endl; return(0); }
+    if (argc < 2) {
+        FatalError_exit("ERROR: No input file specified ... ");
+        return(0);
+    }
 
     std::string input_fname;     // input file name
 
