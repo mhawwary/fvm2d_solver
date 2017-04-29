@@ -268,7 +268,6 @@ void SimCase::dump_resid_norm(const int& iter_, double& cont_resid
 void SimCase::dump_wall_data(double **Qv){
 
     register int i; int nID;
-    double c,M;
 
     //const char* fname = write_fname_.c_str();
 

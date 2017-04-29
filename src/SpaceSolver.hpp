@@ -24,12 +24,7 @@ public:
    virtual void ComputeError()=0;
    virtual void Compute_vertex_sol()=0;
    virtual void UpdateSolution(double **Qn_)=0;
-   virtual void CalclocalTimeStep(double* dt_cell_)=0;
-
-//   virtual void print_num_vertex_sol()=0;
-//   virtual void print_exact_sol()=0;
-//   virtual void print_exact_average_sol()=0;
-//   virtual void print_num_average_sol()=0;
+   virtual void Compute_local_TimeStep(double* dt_cell_)=0;
 
    double** GetNumSolution(){
        return Qc;
@@ -87,6 +82,40 @@ protected:
    virtual void evaluate_sol(double &Xp, double &Yp
                              , const int& eID, double *qq_)=0;
 
+   virtual void compute_GhostSol_WallBC(const double& nx, const double& ny
+                                        , double* Ql, double* Qr)=0;
+
+   virtual void compute_GhostSol_farfieldBC(const double& nx, const double& ny,
+                                    double* Ql, double* Qr)=0;
+
+   virtual void Residulas_setZero(double** Residuals)=0;
+
+   virtual void compute_resid_OneFace(const double &Area_face
+                              ,double* face_flux_, double* resid_)=0;
+
+   virtual void SetGhostVariables()=0;   // Setting Boundary Conditions
+
+   virtual void Reconstruct_sol()=0;
+
+   virtual void Compute_left_right_facesol(const int& fID, double* Ql_
+                                   , double* Qr_)=0;
+   virtual void Compute_left_right_boundfacesol(const int& fID, double* Ql_
+                                   , double* Qr_)=0;
+
+   virtual void Compute_common_inviscidflux(double* Ql, double* Qr
+                                    ,const double& nx, const double& ny
+                                    ,double* flux_)=0;
+
+   virtual void Rusanov_flux(double *Ql, double *Qr
+                     , const double& nx, const double& ny
+                     , double* flux_)=0;
+   virtual void Roe_flux()=0;
+
+   virtual void compute_normal_inViscidFlux(const double& nx, const double& ny
+                                    , double *Q_, double *normInvflux_
+                                    , double& Vn, double& c)=0;
+
+protected:
    /* These pointers are passed to the space solver
    * and is not supposed to be freed in this scope
    */

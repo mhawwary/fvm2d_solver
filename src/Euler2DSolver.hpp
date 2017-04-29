@@ -28,45 +28,45 @@ public:
     virtual void Compute_vertex_sol();
     virtual void UpdateSolution(double **Qn_){}
 
-    virtual void CalclocalTimeStep(double* dt_cell_);
+    virtual void Compute_local_TimeStep(double* dt_cell_);
 
     virtual void evaluate_sol(double &Xp, double &Yp
                               , const int& eID, double *qq_);
 
-protected:
+    virtual void compute_GhostSol_WallBC(const double& nx, const double& ny
+                                         , double* Ql, double* Qr);
 
-    void compute_resid_OneFace(const double &Area_face
+    virtual void compute_GhostSol_farfieldBC(const double& nx, const double& ny,
+                                     double* Ql, double* Qr);
+
+    virtual void Residulas_setZero(double** Residuals);
+
+    virtual void compute_resid_OneFace(const double &Area_face
                                ,double* face_flux_, double* resid_);
 
-    void SetGhostVariables();   // Setting Boundary Conditions
+    virtual void SetGhostVariables();   // Setting Boundary Conditions
 
-    void Reconstruct_sol();
+    virtual void Reconstruct_sol();
 
-    void Compute_left_right_facesol(const int& fID, double* Ql_
+    virtual void Compute_left_right_facesol(const int& fID, double* Ql_
                                     , double* Qr_);
-    void Compute_left_right_boundfacesol(const int& fID, double* Ql_
+    virtual void Compute_left_right_boundfacesol(const int& fID, double* Ql_
                                     , double* Qr_);
 
-    void Compute_common_inviscidflux(double* Ql, double* Qr
+    virtual void Compute_common_inviscidflux(double* Ql, double* Qr
                                      ,const double& nx, const double& ny
                                      ,double* flux_);
 
-    void Rusanov_flux(double *Ql, double *Qr
+    virtual void Rusanov_flux(double *Ql, double *Qr
                       , const double& nx, const double& ny
                       , double* flux_);
-    void Roe_flux(){}
+    virtual void Roe_flux(){}
 
-    void compute_normal_inViscidFlux(const double& nx, const double& ny
+    virtual void compute_normal_inViscidFlux(const double& nx, const double& ny
                                      , double *Q_, double *normInvflux_
                                      , double& Vn, double& c);
 
-    void compute_GhostSol_inviscidWallBC(const double& nx, const double& ny
-                                         , double* Ql, double* Qr);
-
-    void compute_GhostSol_farfieldBC(const double& nx, const double& ny,
-                                     double* Ql, double* Qr);
-
-    void Residulas_setZero(double** Residuals);
+protected:
 
     void Reset_solver();
 

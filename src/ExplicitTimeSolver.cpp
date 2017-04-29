@@ -33,7 +33,7 @@ void ExplicitTimeSolver::setupTimeSolver(SpaceSolver *ospace_solver_
     dt_elem_ =  new double [Nelem];
 
     if(simdata_->use_local_timeStep==1){
-        space_solver_->CalclocalTimeStep(dt_elem_);
+        space_solver_->Compute_local_TimeStep(dt_elem_);
     }else{
         for(i=0; i<Nelem; i++)
             dt_elem_[i]=dt_;
@@ -198,7 +198,7 @@ void ExplicitTimeSolver::compute_dt_minmax(){
 
 void ExplicitTimeSolver::update_local_timestep(){
 
-    space_solver_->CalclocalTimeStep(dt_elem_);
+    space_solver_->Compute_local_TimeStep(dt_elem_);
 
     compute_dt_minmax();
 

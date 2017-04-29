@@ -116,7 +116,6 @@ void Euler2DSolver::UpdateResid(double **Resid_, double **Qc_){
 
     register int i,j;
 
-
     SetGhostVariables();
 
     if(scheme_order==2) Reconstruct_sol();
@@ -249,7 +248,7 @@ void Euler2DSolver::SetGhostVariables(){
 
             if(grid_->facelist[i].bnd_type==-1){ // wall B.C
 
-                compute_GhostSol_inviscidWallBC(nx,ny,&Qc[iL][0],&Qc[iR][0]);
+                compute_GhostSol_WallBC(nx,ny,&Qc[iL][0],&Qc[iR][0]);
 
             }else if(grid_->facelist[i].bnd_type==-2){ // FarField B.C
 
@@ -264,9 +263,10 @@ void Euler2DSolver::SetGhostVariables(){
     return;
 }
 
-void Euler2DSolver::compute_GhostSol_inviscidWallBC(const double& nx, const double& ny
+void Euler2DSolver::compute_GhostSol_WallBC(const double& nx, const double& ny
                                                     ,double *Ql, double *Qr){
-
+    // InViscid Slip Boundary Condition:
+    //-----------------------------------------
     double ul=0.0,vl=0.0,Vnl,ur=0.0,vr=0.0;
 
     ul = Ql[1]/Ql[0];
@@ -374,7 +374,7 @@ void Euler2DSolver::Compute_left_right_boundfacesol(const int& fID
 
         if(grid_->facelist[fID].bnd_type==-1){ // wall BC
 
-            compute_GhostSol_inviscidWallBC(nx,ny,&Ql_[0],&Qr_[0]);
+            compute_GhostSol_WallBC(nx,ny,&Ql_[0],&Qr_[0]);
 
         }else if(grid_->facelist[fID].bnd_type==-2){ // FarField BC
 
@@ -483,7 +483,7 @@ void Euler2DSolver::compute_normal_inViscidFlux(const double& nx, const double& 
                                                 , double *Q_, double *normInvflux_
                                                 , double& Vn, double& p){
 
-    double rho,u,v,c,E;
+    double rho,u,v,E;
     double gama_=gasdata_->gama;
 
     rho = Q_[0];
@@ -493,7 +493,7 @@ void Euler2DSolver::compute_normal_inViscidFlux(const double& nx, const double& 
 
     p = (gama_-1.) * ( E - (0.5 * rho * ( pow(u,2) + pow(v,2) )) );
 
-    c = sqrt(gama_*p/rho);
+    //c = sqrt(gama_*p/rho);
 
     Vn = u*nx + v*ny;
 
@@ -561,7 +561,7 @@ void Euler2DSolver::Compute_vertex_sol(){
                 evaluate_sol(grid_->Xn[i],grid_->Yn[i],iL, &qq_[0]);
 
                 if(grid_->facelist[fID].bnd_type==-1)
-                    compute_GhostSol_inviscidWallBC(nx,ny,&qq_[0],&qq_[0]); // becareful of debendency between ql,qr
+                    compute_GhostSol_WallBC(nx,ny,&qq_[0],&qq_[0]); // becareful of debendency between ql,qr
                 else if(grid_->facelist[fID].bnd_type==-2)
                     compute_GhostSol_farfieldBC(nx,ny,&qq_[0],&qq_[0]);
                 else
@@ -590,13 +590,13 @@ void Euler2DSolver::Compute_vertex_sol(){
     return;
 }
 
-void Euler2DSolver::CalclocalTimeStep(double *dt_cell_){
+void Euler2DSolver::Compute_local_TimeStep(double *dt_cell_){
 
     double *cell_radii=nullptr; // sum(|Vn|+c * Sf)
 
     cell_radii = new double[Nelem];
 
-    register int i,j; int iL,iR;
+    register int i; int iL,iR;
 
     double nx,ny,Sf,Vn;
     double rho,u,v,p,E,c;

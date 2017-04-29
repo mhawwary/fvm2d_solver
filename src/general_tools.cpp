@@ -20,7 +20,8 @@ int Partition(double*& szArray,double*& ssArray, int nLower, int nUpper)
 {
     // Pivot with first element
     int nLeft = nLower + 1;
-    double szPivot = szArray[nLower];   double ssPivot=ssArray[nLower];
+    double szPivot = szArray[nLower];
+    //double ssPivot=ssArray[nLower];
     int nRight = nUpper;
 
     // Partition array elements
