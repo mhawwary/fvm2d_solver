@@ -84,8 +84,15 @@ protected:
 
    virtual void compute_GhostSol_WallBC(const double& nx, const double& ny
                                         , double* Ql, double* Qr)=0;
+   virtual void compute_GhostSol_SymmetryBC(const double& nx, const double& ny
+                                            , double* Ql, double* Qr); // Same as Wall B.C. for Inviscid flows
 
    virtual void compute_GhostSol_farfieldBC(const double& nx, const double& ny,
+                                    double* Ql, double* Qr)=0;
+
+   virtual void Compute_Inlet_charBC(const double& nx, const double& ny,
+                                     double* Ql, double* Qr)=0;
+   virtual void Compute_Exit_charBC(const double& nx, const double& ny,
                                     double* Ql, double* Qr)=0;
 
    virtual void Residulas_setZero(double** Residuals)=0;

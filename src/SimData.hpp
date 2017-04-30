@@ -10,12 +10,18 @@ struct GasProb{
     // Gas Properties:
     //------------------
 
+    // Total Conditions:
     double gama=1.4;
     double R_gas = 287.0;
     double Prndtl = 0.72;
     double Ptot = 101325.0;
     double Rho_tot = 1.225;
     double T_tot = 288.2030861;
+
+    // Static Conditions:
+    double Ps=Ptot;
+    double Ts=T_tot;
+    double Rho_s= Rho_tot;
 
     // Flow Properties:
     //--------------------
@@ -24,6 +30,7 @@ struct GasProb{
     double Re_no = 1.0e6;
 
     void Parse(const std::string &fname);
+    void compute_static_conditions();
 
     void CalculateFlowProperties(double& rho_,
                                  double& u_, double& v_,

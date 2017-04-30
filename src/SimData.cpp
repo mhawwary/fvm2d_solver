@@ -51,6 +51,8 @@ void GasProb::Parse(const std::string &fname){
     Mach_ = gp_input("Flow/Mach",0.5);
     Re_no = gp_input("Flow/Reynolds_no",0.);
 
+    compute_static_conditions();
+
     return;
 }
 
@@ -116,6 +118,25 @@ void GasProb::CalculateFlowProperties(double& rho_,
 
 //    printf("\n\nP: %e, T: %e, rho: %e, u: %e, v: %e, E: %e",p_, T_, rho_, u_, v_, E_);
 //    std::cin.get();
+
+    return;
+}
+
+void GasProb::compute_static_conditions(){
+
+    double MM = (1.0 + 0.5 *(gama-1.0) * pow(Mach_,2));
+    double g_gm1 = gama/(gama-1.0);
+
+    Rho_s =1.0;
+    Ps = 1.0/gama;
+    //c_=1.0;
+
+
+    Ts = Ps / (R_gas * Rho_s);
+
+    Ptot = Ps * pow(MM,g_gm1);
+    T_tot = Ts * MM;
+
 
     return;
 }

@@ -1,12 +1,6 @@
-
 #ifndef EULER2DSOLVER_H
 #define EULER2DSOLVER_H
 
-//#include"MeshData.h"
-//#include"SimData.hpp"
-//#include"quadrature.h"
-//#include"general_tools.h"
-//#include"global_var.h"
 
 #include"SpaceSolver.hpp"
 
@@ -35,8 +29,15 @@ public:
 
     virtual void compute_GhostSol_WallBC(const double& nx, const double& ny
                                          , double* Ql, double* Qr);
+    virtual void compute_GhostSol_SymmetryBC(const double& nx, const double& ny
+                                             , double* Ql, double* Qr); // Same as Wall B.C. for Inviscid flows
 
     virtual void compute_GhostSol_farfieldBC(const double& nx, const double& ny,
+                                     double* Ql, double* Qr);
+
+    virtual void Compute_Inlet_charBC(const double& nx, const double& ny,
+                                      double* Ql, double* Qr);
+    virtual void Compute_Exit_charBC(const double& nx, const double& ny,
                                      double* Ql, double* Qr);
 
     virtual void Residulas_setZero(double** Residuals);

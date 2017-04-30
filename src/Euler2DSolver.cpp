@@ -285,6 +285,28 @@ void Euler2DSolver::compute_GhostSol_WallBC(const double& nx, const double& ny
     return;
 }
 
+void Euler2DSolver::compute_GhostSol_SymmetryBC(const double& nx, const double& ny
+                                                    ,double *Ql, double *Qr){
+    // InViscid Slip (Symmetry) Boundary Condition:
+    //----------------------------------------------
+    double ul=0.0,vl=0.0,Vnl,ur=0.0,vr=0.0;
+
+    ul = Ql[1]/Ql[0];
+    vl = Ql[2]/Ql[0];
+
+    Vnl = (ul*nx + vl*ny); // normal component of left cell velocity vector
+
+    ur = ul - (2.*Vnl * nx);
+    vr = vl - (2.*Vnl * ny);
+
+    Qr[0] = Ql[0];
+    Qr[1] = Qr[0] * ur;
+    Qr[2] = Qr[0] * vr;
+    Qr[3] = Ql[3];   // since they are of same velocity magnitude and Pr=Pl
+
+    return;
+}
+
 void Euler2DSolver::compute_GhostSol_farfieldBC(const double& nx, const double& ny
                                                 ,double *Ql, double *Qr){
 
@@ -300,8 +322,118 @@ void Euler2DSolver::compute_GhostSol_farfieldBC(const double& nx, const double& 
 
     }else if(simdata_->FarFieldBC=="Characteristics"){
 
+        // First test If Inlet or Exit :
+        // -----------------------------
+        double u,v,Vn;
+        u = Ql[1]/Ql[0]; v = Ql[2]/Ql[0];
+        Vn = u*nx + v*ny;
+
+        if(Vn < 0){ // Inlet Boundary condition:
+            Compute_Inlet_charBC(nx,ny,Ql,Qr);
+        } else if(Vn>0) { // Exit Boundary Condition
+            Compute_Exit_charBC(nx,ny,Ql,Qr);
+        } else{ // Vn=0, Symmetry boundary condition
+            //FatalError("Very Strange Error Vn=0 at Farfeild BC");
+            compute_GhostSol_SymmetryBC(nx,ny,Ql,Qr);
+        }
     }else{
         _notImplemented("This FarField Boundary Condition is not implemented");
+    }
+
+    return;
+}
+
+void Euler2DSolver::Compute_Inlet_charBC(const double &nx, const double &ny
+                                         , double *Ql, double *Qr){
+    double Vn_l, u, v , c_l, Pl;
+
+    u = Ql[1] / Ql[0];
+    v = Ql[2] / Ql[0];
+
+    Pl = (gasdata_->gama-1.0) * ( Ql[3] - ( 0.5 * ( pow(Ql[1],2) + pow(Ql[2],2) ) / Ql[0] ) );
+    Vn_l = u*nx+v*ny;
+    c_l  = sqrt ( gasdata_->gama * Pl / Ql[0] );
+
+    double Mn = fabs(Vn_l) / c_l;
+
+    if(Mn>=1) { // Supersonic Inflow
+        //printf("\n Supersonic Inflow ");
+        double rho_r, u_r, v_r, E_r;
+        gasdata_->CalculateFlowProperties(rho_r,u_r,v_r,E_r);
+        Qr[0] = rho_r;
+        Qr[1] = rho_r * u_r;
+        Qr[1] = rho_r * v_r;
+        Qr[3] = E_r;
+
+    }else {     // Subsonic Inflow
+        double gama = gasdata_->gama;
+        double Po = gasdata_->Ptot;
+        double To = gasdata_->T_tot;
+
+        double alpha = gasdata_->alpha_deg_ * PI / 180.0;
+
+        double Pr,Tr,rho_r,Mr,c_r;
+
+        Pr = Pl; // Pr = Pl
+
+        double gm1_g = (gama-1.0)/gama;
+
+        Mr = sqrt( 2.0 * ( pow((Po/Pr),gm1_g) - 1.0 ) / (gama-1.0) ) ;
+
+        Tr = To / ( 1.0 + (0.5*(gama-1.0) * pow(Mr,2)) ) ;
+
+        rho_r = Pr / ( gasdata_->R_gas * Tr );
+
+        c_r = sqrt(gama*Pr/rho_r);
+
+        Qr[0] = rho_r;
+        Qr[1] = Qr[0] * Mr * c_r * cos(alpha);
+        Qr[2] = Qr[0] * Mr * c_r * sin(alpha);
+        Qr[3] = (Pr/(gama-1.0)) + ( 0.5 * ( pow(Qr[1],2) + pow(Qr[2],2) ) / Qr[0] ) ;
+    }
+
+    return;
+}
+
+void Euler2DSolver::Compute_Exit_charBC(const double &nx, const double &ny
+                                        , double *Ql, double *Qr){
+    double Vn_l, u, v , c_l, Pl;
+
+    u = Ql[1] / Ql[0];
+    v = Ql[2] / Ql[0];
+
+    Pl = (gasdata_->gama-1.) * ( Ql[3] - ( 0.5 * ( pow(Ql[1],2) + pow(Ql[2],2) ) / Ql[0] ) );
+    Vn_l = u*nx+v*ny;
+    c_l  = sqrt ( gasdata_->gama * Pl / Ql[0] );
+
+    double Mn = fabs(Vn_l) / c_l;
+
+    if(Mn>=1) { // Supersonic Outflow
+        //printf("\n Supersonic Outflow ");
+        Qr[0] = Ql[0];
+        Qr[1] = Ql[1];
+        Qr[2] = Ql[2];
+        Qr[3] = Ql[3];
+
+    } else { // subsonic Outflow
+
+        double gama = gasdata_->gama;
+        double u_r,v_r,Pr,Vn_r,c_r,rho_r,Ro,Rp;
+        Pr = gasdata_->Ps;
+
+        Ro = Pl / pow( Ql[0],gama ) ;
+        Rp = Vn_l + ( 2 * c_l / (gama-1.0) ) ;
+
+        rho_r = pow( (Pr/Ro) , (1.0/gama) );
+        c_r = sqrt( gama * Pr / rho_r );
+        Vn_r = Rp - ( 2 * c_r / (gama-1.0) );
+        u_r = u  + ( Vn_r - Vn_l) * nx;
+        v_r = v  + ( Vn_r - Vn_l) * ny;
+
+        Qr[0] = rho_r;
+        Qr[1] = rho_r * u_r;
+        Qr[2] = rho_r * v_r;
+        Qr[3] = (Pr/(gama-1.0)) + 0.5 * rho_r * (pow(u_r,2)+pow(v_r,2));
     }
 
     return;
