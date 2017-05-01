@@ -63,7 +63,7 @@ vpath %.h include src
 vpath %.hpp include src
 
 # Objects
-OBJS	= $(OBJ)FVMFlow.o  $(OBJ)SimCase.o $(OBJ)general_tools.o $(OBJ)Mesh.o $(OBJ)SimData.o $(OBJ)Euler2DSolver.o $(OBJ)solver_tools.o $(OBJ)ExplicitTimeSolver.o  # objects 
+OBJS	= $(OBJ)FVMFlow.o  $(OBJ)SimCase.o $(OBJ)general_tools.o $(OBJ)Mesh.o $(OBJ)SimData.o $(OBJ)Euler2DSolver.o $(OBJ)NS2DSolver.o $(OBJ)solver_tools.o $(OBJ)ExplicitTimeSolver.o  # objects 
 INCLS	= 
 
 # Compile
@@ -94,6 +94,7 @@ $(OBJ)SimData.o:   SimData.hpp SimData.cpp
 $(OBJ)general_tools.o:   general_tools.h general_tools.cpp
 $(OBJ)Mesh.o:   Mesh.hpp Mesh.cpp
 $(OBJ)Euler2DSolver.o: Euler2DSolver.hpp Euler2DSolver.cpp 
+$(OBJ)NS2DSolver.o: NS2DSolver.hpp NS2DSolver.cpp
 $(OBJ)ExplicitTimeSolver.o: ExplicitTimeSolver.hpp ExplicitTimeSolver.cpp
 $(OBJ)solver_tools.o: solver_tools.h solver_tools.c
 

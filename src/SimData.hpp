@@ -28,6 +28,7 @@ struct GasProb{
     double alpha_deg_=0.0;
     double Mach_ = 0.5;
     double Re_no = 1.0e6;
+    double Mu_inf=1.0;
 
     void Parse(const std::string &fname);
     void compute_static_conditions();
@@ -54,6 +55,7 @@ struct SimData {
     std::string eqn_set;
     std::string FarFieldBC;
     std::string WallBC;
+    std::string ViscFlux;
 
     int restart_flag=0;  //0: start a new simulation; 1: restart a previous simulation
     int restart_iter=0;
@@ -69,6 +71,7 @@ struct SimData {
     double CFL_=0.5;
     int RK_order=0;       // Runge-Kutta type (0: euler FT, 2: SSPRK22, 3: SSPRK33)
     int use_local_timeStep=0;
+    double visc_dt_factor=1.0;
 
     void Parse(const std::string &fname);
 

@@ -23,6 +23,7 @@ void SimData::Parse(const std::string &fname){
     eqn_set = gp_input("space_solver/eqn_set","Euler");
     FarFieldBC = gp_input("space_solver/FarField_Boundary_condition","Extrapolation");
     WallBC = gp_input("space_solver/Wall_Boundary_condition","Extrapolation");
+    ViscFlux = gp_input("space_solver/ViscousFlux","ZJWang");
 
     dt_ = gp_input("time_solver/dt",1e-9);
     t_init_ = gp_input("time_solver/initial_time",1e-9);
@@ -31,6 +32,7 @@ void SimData::Parse(const std::string &fname){
     CFL_ = gp_input("time_solver/CFL",0.5);
     RK_order=gp_input("time_solver/explicit/RK_order",0);
     use_local_timeStep = gp_input("time_solver/use_local_timeStep",0);
+    visc_dt_factor = gp_input("time_solver/visc_locat_dt_factor",1.0);
 
     return;
 }
@@ -50,6 +52,7 @@ void GasProb::Parse(const std::string &fname){
     alpha_deg_ = gp_input("Flow/alpha",0.);
     Mach_ = gp_input("Flow/Mach",0.5);
     Re_no = gp_input("Flow/Reynolds_no",0.);
+    Mu_inf = gp_input("Flow/Mu_infinity",1.);
 
     compute_static_conditions();
 
@@ -136,7 +139,6 @@ void GasProb::compute_static_conditions(){
 
     Ptot = Ps * pow(MM,g_gm1);
     T_tot = Ts * MM;
-
 
     return;
 }

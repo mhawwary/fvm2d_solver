@@ -32,7 +32,12 @@ void SimCase::setup(const std::string &input_fname_){
     simdata.Parse(input_fname_);
     gasdata.Parse(input_fname_);
 
-    fvm_space_solver = new Euler2DSolver;
+    if(simdata.eqn_set=="Euler")
+        fvm_space_solver = new Euler2DSolver;
+    else if(simdata.eqn_set=="NavierStokes")
+        fvm_space_solver = new NS2DSolver;
+    else
+        _notImplemented("An unidentified eqn_set");
 
     time_solver = new ExplicitTimeSolver;
 

@@ -108,6 +108,17 @@ void ExplicitTimeSolver::SSPRK22(double **q_){
 
     int k;
 
+    for(j=0; j<Nelem; j++){
+        for(k=0; k<Ndof; k++)
+            if(std::isnan(resid[j][k])){
+                printf("\n Print Residuals before step1 RK22: \n");
+                printf("Troubled cell: %d %e %e %e %e\n",j,resid[j][0], resid[j][1],resid[j][2],resid[j][3]);
+                std::cin.get();
+                break;
+        }
+    }
+
+
     CopyOldSol(q_temp,q_);  // Copying level n solution and saving it
 
     // Step1:
@@ -118,6 +129,17 @@ void ExplicitTimeSolver::SSPRK22(double **q_){
 
     space_solver_->UpdateResid(resid,q_);
 
+
+    for(j=0; j<Nelem; j++){
+        for(k=0; k<Ndof; k++)
+            if(std::isnan(resid[j][k])){
+                printf("\n Print Residuals After step1 RK22: \n");
+                printf("Troubled cell: %d %e %e %e %e\n",j,resid[j][0], resid[j][1],resid[j][2],resid[j][3]);
+                std::cin.get();
+                break;
+        }
+    }
+
     // Step2:
     //------------
     for(j=0; j<Nelem; j++)
@@ -126,6 +148,17 @@ void ExplicitTimeSolver::SSPRK22(double **q_){
                                       + dt_elem_[j] * (resid[j][k]/meshdata_->elemlist[j].Vc) );
 
     space_solver_->UpdateResid(resid,q_);
+
+
+    for(j=0; j<Nelem; j++){
+        for(k=0; k<Ndof; k++)
+            if(std::isnan(resid[j][k])){
+                printf("\n Print Residuals before step2 RK22: \n");
+                printf("Troubled cell: %d %e %e %e %e\n",j,resid[j][0], resid[j][1],resid[j][2],resid[j][3]);
+                std::cin.get();
+                break;
+        }
+    }
 
     return;
 }
@@ -291,6 +324,18 @@ double ExplicitTimeSolver::GetEnergyResNorm(){
 void ExplicitTimeSolver::ComputeInitialResid(double** Qn_){
 
     space_solver_->UpdateResid(resid,Qn_);
+
+    int j,k;
+
+    for(j=0; j<Nelem; j++){
+        for(k=0; k<Ndof; k++)
+            if(std::isnan(resid[j][k])){
+                printf("\n Print Initial Residuals \n");
+                printf("Troubled cell: %d %e %e %e %e\n",j,resid[j][0], resid[j][1],resid[j][2],resid[j][3]);
+                std::cin.get();
+                break;
+        }
+    }
 
     return ;
 }

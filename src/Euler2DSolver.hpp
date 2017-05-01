@@ -42,9 +42,6 @@ public:
 
     virtual void Residulas_setZero(double** Residuals);
 
-    virtual void compute_resid_OneFace(const double &Area_face
-                               ,double* face_flux_, double* resid_);
-
     virtual void SetGhostVariables();   // Setting Boundary Conditions
 
     virtual void Reconstruct_sol();
@@ -68,6 +65,9 @@ public:
                                      , double& Vn, double& c);
 
 protected:
+
+    void compute_resid_OneFace(const double &Area_face
+                               ,double* face_flux_, double* resid_);
 
     void Reset_solver();
 
