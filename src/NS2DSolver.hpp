@@ -19,7 +19,7 @@ public:
 
     virtual void UpdateResid(double **Resid_, double **Qn_);
     virtual void ComputeError(){}
-    virtual void Compute_vertex_sol();
+    virtual void Compute_vertex_sol(const int& oiter);
     virtual void UpdateSolution(double **Qn_){}
 
     virtual void Compute_local_TimeStep(double* dt_cell_);

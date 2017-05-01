@@ -39,11 +39,11 @@ public:
     }
 
     void   ComputeInitialResid(double** Qn_);
-    double GetResNorm();
-    double GetContinuityResNorm();
-    double GetMomentumXResNorm();
-    double GetMomentumYResNorm();
-    double GetEnergyResNorm();
+    double GetResNorm(const int& norm_flag);
+    double GetContinuityResNorm(const int& norm_flag);
+    double GetMomentumXResNorm(const int& norm_flag);
+    double GetMomentumYResNorm(const int& norm_flag);
+    double GetEnergyResNorm(const int& norm_flag);
 
     double getdt_min(){ return dt_min; }
     double getdt_max(){ return dt_max; }

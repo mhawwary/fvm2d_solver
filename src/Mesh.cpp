@@ -232,11 +232,6 @@ void Mesh::generate_meshData(){
     grid_data_->NintElem  = grid_data_->Nelem  - grid_data_->NbndElem;
     grid_data_->Nintfaces = grid_data_->Nfaces - grid_data_->Nbndfaces;
 
-    _compare(grid_data_->NintElem,grid_data_->NbndElem);
-    _(grid_data_->Nelem);
-    _compare(grid_data_->Nintfaces,grid_data_->Nbndfaces);
-    _(grid_data_->Nfaces);
-
     compute_faceData();
 
     compute_elemData();
@@ -425,11 +420,9 @@ void Mesh::compute_elemData(){
     int j,fID,iL,iR;
 
     for(i=0; i<grid_data_->Nfaces; i++){
-
         fID = i;
-
-        iL = grid_data_->facelist[i].Lcell;
-        iR = grid_data_->facelist[i].Rcell;
+        iL = grid_data_->facelist[fID].Lcell;
+        iR = grid_data_->facelist[fID].Rcell;
 
         elem_to_face_set[iL].insert(fID);
 
@@ -458,7 +451,8 @@ void Mesh::compute_elemData(){
     for(i=0; i<grid_data_->Nnodes; i++){
 
         grid_data_->Nnode_neighElem[i] = node_to_elem_set[i].size();
-        grid_data_->node_to_elemlist[i] = new int[grid_data_->Nnode_neighElem[i] ];
+        grid_data_->node_to_elemlist[i] =
+                new int[grid_data_->Nnode_neighElem[i] ];
 
         j=0;
         for(node_to_elem_it=node_to_elem_set[i].begin();
@@ -471,27 +465,21 @@ void Mesh::compute_elemData(){
 
     }
 
-    int Ntri=0,Nquad=0,Nothers=0;
+    int Ntri=0,Nquad=0,Nothers=0,N_new=0;
+
+    std::vector<int> polygon_elemlist;
 
     for(i=0; i<grid_data_->Nelem; i++){
 
         grid_data_->elemlist[i].n_local_faces = elem_to_face_set[i].size();
-        grid_data_->elemlist[i].to_face = new int[grid_data_->elemlist[i].n_local_faces];
+        grid_data_->elemlist[i].to_face =
+                new int[grid_data_->elemlist[i].n_local_faces];
         grid_data_->elemlist[i].n_local_nodes = elem_to_face_set[i].size();
-        grid_data_->elemlist[i].to_node = new int[grid_data_->elemlist[i].n_local_nodes];
+        grid_data_->elemlist[i].to_node =
+                new int[grid_data_->elemlist[i].n_local_nodes];
 
         j=0;
         elem_to_node_it = elem_to_node_set[i].begin();
-
-//        for(elem_to_face_it=elem_to_face_set[i].begin();
-//            elem_to_face_it!=elem_to_face_set[i].end(); ++elem_to_face_it){
-
-//            grid_data_->elemlist[i].to_face[j] = *elem_to_face_it;
-
-//            grid_data_->elemlist[i].to_node[j] = *elem_to_node_it;
-
-//            j++; ++elem_to_node_it;
-//        }
 
         elem_to_face_it=elem_to_face_set[i].begin();
 
@@ -509,16 +497,22 @@ void Mesh::compute_elemData(){
         }else if(elem_to_face_set[i].size()==4) {
             Nquad++;
         }else if(elem_to_face_set[i].size()>=5){
+            // Filling in list of polygon elements
             Nothers++;
+            N_new += (elem_to_face_set[i].size()-1);
+            polygon_elemlist.push_back(i);
         }else{
             FatalErrorST("\nProblem unidentified element type\n");
         }
 
-        // Computing Cell Volume and Cell center position:
-
-        compute_cell_volume_center(i); // needs centroid and volume verification
+        compute_cell_volume_center(i);
     }
 
+    //---------------------------------------------------------------------
+    /* Filling up a new element list that contains
+     * only triangles and Quadrilaterals
+     */
+    //---------------------------------------------------------------------
     grid_data_->NtriElem= Ntri;
     grid_data_->NquadElem = Nquad;
     grid_data_->Npolygon = Nothers;
@@ -527,10 +521,28 @@ void Mesh::compute_elemData(){
      * for post processing.
      * */
 
-    printf("\nNtriangles: %d,  Nquads: %d,  Nother:  %d\n",Ntri,Nquad,Nothers);
+    printf("\nNtriangles: %d,  Nquads: %d,  Npolygons: %d\n"
+           ,Ntri,Nquad,Nothers);
 
+    polygon_elemlist.shrink_to_fit();
+
+    prepare_post_proc_elemlist(polygon_elemlist,N_new);
+
+    compute_ghost_elemData();
+
+    emptyarray(elem_to_face_set);
+    emptyarray(elem_to_node_set);
+    emptyarray(node_to_elem_set);
+
+    return;
+}
+
+void Mesh::compute_ghost_elemData(){
+
+    //---------------------------------------------
     // Calculation of Ghost cells geometric data:
     //---------------------------------------------
+    register int j; int iL,iR;
     double Xf,Yf,Xc,Yc,nx,ny;
 
     for(j=0; j<grid_data_->Nbndfaces; j++){
@@ -546,13 +558,123 @@ void Mesh::compute_elemData(){
 
         grid_data_->elemlist[iR].Vc = grid_data_->elemlist[iL].Vc;
 
-        grid_data_->elemlist[iR].Xc = Xc*((ny*ny)-(nx*nx)) -2*Yc*nx*ny - Yf*nx + Xf *(1.0+ny) ;
-        grid_data_->elemlist[iR].Yc = Yc*((nx*nx)-(ny*ny)) -2*Xc*nx*ny - Xf*nx + Yf *(1.0-ny) ;
+        grid_data_->elemlist[iR].Xc = Xc*((ny*ny)-(nx*nx)) -2*Yc*nx*ny
+                                         - Yf*nx + Xf *(1.0+ny) ;
+        grid_data_->elemlist[iR].Yc = Yc*((nx*nx)-(ny*ny)) -2*Xc*nx*ny
+                                         - Xf*nx + Yf *(1.0-ny) ;
     }
 
-    emptyarray(elem_to_face_set);
-    emptyarray(elem_to_node_set);
-    emptyarray(node_to_elem_set);
+    return;
+}
+
+void Mesh::prepare_post_proc_elemlist(std::vector<int> &polygon_elemlist
+                                      ,  const int& N_new_tri){
+    register int i,j; int k;
+
+    grid_data_->Nnodes_postproc = grid_data_->Nnodes + grid_data_->Npolygon;
+    grid_data_->NpostProc = grid_data_->Nelem+N_new_tri;
+    grid_data_->post_proc_elemlist = new Elem[grid_data_->NpostProc];
+    grid_data_->post_Xn = new double[grid_data_->Nnodes_postproc];
+    grid_data_->post_Yn = new double[grid_data_->Nnodes_postproc];
+    grid_data_->polygon_elem_origID = new int[polygon_elemlist.size()];
+
+    for(i=0; i<grid_data_->Nelem; i++){
+        grid_data_->post_proc_elemlist[i] = grid_data_->elemlist[i];
+    }
+
+    for(i=grid_data_->Nelem; i<grid_data_->NpostProc; i++){
+
+        grid_data_->post_proc_elemlist[i].to_node = new int[3];
+    }
+
+    for(i=0; i<grid_data_->Nnodes; i++){
+        grid_data_->post_Xn[i] = grid_data_->Xn[i];
+        grid_data_->post_Yn[i] = grid_data_->Yn[i];
+    }
+
+    int Xc_id,v0,v1,fID;
+    int i_new=grid_data_->Nelem;
+
+    for(i=0; i<grid_data_->Npolygon; i++){
+
+        j=polygon_elemlist[i];
+        grid_data_->polygon_elem_origID[i] = j;  // used to get cell centered values at the new node
+        Xc_id = i+grid_data_->Nnodes;
+        grid_data_->post_Xn[Xc_id] = grid_data_->post_proc_elemlist[j].Xc;
+        grid_data_->post_Yn[Xc_id] = grid_data_->post_proc_elemlist[j].Yc;
+
+        fID = grid_data_->post_proc_elemlist[j].to_face[0];
+        v0 = grid_data_->facelist[fID].v0;
+        v1 = grid_data_->facelist[fID].v1;
+
+        // Face 0 enclose element takes the original element ID:
+        grid_data_->post_proc_elemlist[j].n_local_nodes=3;
+        grid_data_->post_proc_elemlist[j].to_node[0] = Xc_id;
+        grid_data_->post_proc_elemlist[j].to_node[1] = v0;
+        grid_data_->post_proc_elemlist[j].to_node[2] = v1;
+
+        for(k=1; k<grid_data_->post_proc_elemlist[j].n_local_faces; k++){
+            fID = grid_data_->post_proc_elemlist[j].to_face[k];
+            v0 = grid_data_->facelist[fID].v0;
+            v1 = grid_data_->facelist[fID].v1;
+
+            grid_data_->post_proc_elemlist[i_new].n_local_nodes=3;
+            grid_data_->post_proc_elemlist[i_new].to_node[0] = Xc_id;
+            grid_data_->post_proc_elemlist[i_new].to_node[1] = v0;
+            grid_data_->post_proc_elemlist[i_new].to_node[2] = v1;
+            i_new++;
+        }
+    }
+
+    // Reordering the nodes of Quadrilaterals either in CC or CCW:
+    //-------------------------------------------------------------
+    int fID0,v00,v01; int check0=0,check1=0;
+    double nx0,ny0,nx,ny,n_test;
+
+    for(i=0; i< grid_data_->Nelem; i++){
+
+        if(grid_data_->post_proc_elemlist[i].n_local_nodes==4){
+
+            fID0 = grid_data_->post_proc_elemlist[i].to_face[0];
+            v00  = grid_data_->facelist[fID0].v0;
+            v01  = grid_data_->facelist[fID0].v1;
+            nx0 = grid_data_->facelist[fID0].nx;
+            ny0 = grid_data_->facelist[fID0].ny;
+
+            grid_data_->post_proc_elemlist[i].to_node[0] = v00;
+            grid_data_->post_proc_elemlist[i].to_node[1] = v01;
+
+            check0=0; check1=0;
+            for(j=1; j<grid_data_->post_proc_elemlist[i].n_local_faces; j++){
+
+                fID = grid_data_->post_proc_elemlist[i].to_face[j];
+                v0 = grid_data_->facelist[fID].v0;
+                v1 = grid_data_->facelist[fID].v1;
+                nx = grid_data_->facelist[fID].nx;
+                ny = grid_data_->facelist[fID].ny;
+
+                if(v00!=v0 && v00!=v1) check0=1;
+                if(v01!=v0 && v01!=v1) check1=1;
+
+                if(check0 && check1){
+                    break;
+                }else{
+                    check0=0; check1=0;
+                }
+            }
+
+            n_test = (nx0*nx) + (ny0*ny) ;
+
+            if(n_test>0){
+                grid_data_->post_proc_elemlist[i].to_node[2] =v1 ;
+                grid_data_->post_proc_elemlist[i].to_node[3] =v0 ;
+
+            }else{
+                grid_data_->post_proc_elemlist[i].to_node[2] =v0 ;
+                grid_data_->post_proc_elemlist[i].to_node[3] =v1 ;
+            }
+        } // end of if quad condition
+    }
 
     return;
 }
@@ -695,8 +817,9 @@ void Mesh::WriteMesh(std::string &write_fname_){
     for(i=0; i<grid_data_->Nfaces; i++){
 
         output << grid_data_->facelist[i].ID << " "
-               << grid_data_->facelist[i].v0 << " "
-               << grid_data_->facelist[i].v1 << " "
+               << grid_data_->facelist[i].Xf << " "
+               << grid_data_->facelist[i].Yf << " "
+               << grid_data_->facelist[i].Af << " "
                << grid_data_->facelist[i].Lcell << " "
                << grid_data_->facelist[i].Rcell << " "
                << grid_data_->facelist[i].bnd_type << "\n";
@@ -705,16 +828,11 @@ void Mesh::WriteMesh(std::string &write_fname_){
     for(i=0; i<grid_data_->Nelem; i++){
 
         output << grid_data_->elemlist[i].ID << " "
-               << grid_data_->elemlist[i].bnd_type << "\n";
-    }
-
-    std::ofstream output1 ("./post_process/CellVolume.dat");
-
-    for(i=0; i<grid_data_->Nelem; i++){
-
-        output1 << grid_data_->elemlist[i].Xc << " "
+               << grid_data_->elemlist[i].Xc << " "
                << grid_data_->elemlist[i].Yc << " "
-               << grid_data_->elemlist[i].Vc << "\n";
+               << grid_data_->elemlist[i].Vc << " "
+               << grid_data_->elemlist[i].n_local_faces << " "
+               << grid_data_->elemlist[i].bnd_type <<"\n";
     }
 
     return;
@@ -730,30 +848,31 @@ void Mesh::WriteMeshTecplot(std::string &write_fname_){
 
     FILE*  outfile=fopen(fname,"wt");
 
-//    fprintf(outfile, "VARIABLES = \"X\",\"Y\",\"M\",\"P\",\"RHO\",\"u\",\"v\"");
     fprintf(outfile, "VARIABLES = \"X\",\"Y\",\"M\"");
-    fprintf(outfile, "\nZONE N=%d, E=%d, F=FEPOINT, ET=FEPOLYGON\n", grid_data_->Nnodes, grid_data_->Nelem);
+    fprintf(outfile, "\nZONE N=%d, E=%d, F=FEPOINT, ET=QUADRILATERAL\n"
+            , grid_data_->Nnodes_postproc, grid_data_->NpostProc);
 
-    for(k=0; k<grid_data_->Nnodes; k++)
+    for(k=0; k<grid_data_->Nnodes_postproc; k++)
     {
         fprintf(outfile, "%e %e %e\n",
-                grid_data_->Xn[k], grid_data_->Yn[k], 0.0);
+                grid_data_->post_Xn[k], grid_data_->post_Yn[k], 0.0);
     }
 
     int node_id;
 
-    for(k=0; k<grid_data_->Nelem; k++)
+    for(k=0; k<grid_data_->NpostProc; k++)
     {
         fprintf(outfile, "\n");
-        for(j=0; j<grid_data_->elemlist[k].n_local_nodes; j++){
-            node_id = grid_data_->elemlist[k].to_node[j];
+        for(j=0; j<grid_data_->post_proc_elemlist[k].n_local_nodes; j++){
+            node_id = grid_data_->post_proc_elemlist[k].to_node[j];
             fprintf(outfile, "%d ",node_id+1);
         }
+
+        if(grid_data_->post_proc_elemlist[k].n_local_nodes==3)
+            fprintf(outfile, "%d ",node_id+1);
     }
 
     fclose(outfile);
-
-    //emptyarray(fname);
 
     return;
 }

@@ -24,9 +24,17 @@ public:
 
 protected:
   void logo();
-  void dump_resid_norm(const int& iter_, double& cont_resid
-                       ,double& Xmom_resid, double& Ymom_resid, double& Energy_resid);
-  void dump_wall_data(double** Qv);
+  void dump_resid_L2norm(const int& iter_, double& resid_sum_
+                         , double& cont_resid,double& Xmom_resid
+                         , double& Ymom_resid,double& Energy_resid);
+//  void dump_resid_L1norm(const int& iter_, double& resid_sum_
+//                         , double& cont_resid,double& Xmom_resid
+//                         , double& Ymom_resid,double& Energy_resid);
+  void dump_wall_data(double** Qv, const int& oiter);
+  void dump_field_data(double **Qv, const int& oiter);
+  void copy_problem_inputdata();
+  void copyFile(const std::string& fileNameFrom, const std::string& fileNameTo);
+
 
 protected:
   //std::string input_fname;  // input file name

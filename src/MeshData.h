@@ -125,18 +125,14 @@ struct Elem{
 
         emptyarray(to_face);
         emptyarray(to_node);
-        //emptyarray(neigh_eID);
         emptyarray(DX);
         emptyarray(DY);
     }
 
     bool isbound=false;  // true if it is a boundary elem
-     int bnd_type=0; // 0:interior , -1: Wall , -2: FarFeild
+    int bnd_type=0; // 0:interior , -1: Wall , -2: FarFeild
 
     int ID=0;   // Elem ID
-
-    int Nn=4;  // no. of nodes
-    int Nf=4;  // no. of faces
 
     int *to_node=nullptr;   // elem_to_node list
     int *to_face=nullptr;   // elem_to_face list
@@ -155,6 +151,36 @@ struct Elem{
 
     double *DX=nullptr;
     double *DY=nullptr;
+
+    virtual Elem& operator =(const Elem& RElem){
+
+        isbound= RElem.isbound;
+        bnd_type = RElem.bnd_type;
+
+        ID = RElem.ID;
+
+        n_local_faces = RElem.n_local_faces;
+        n_local_nodes = RElem.n_local_nodes;
+
+        to_face = new int[n_local_faces];
+        to_node = new int[n_local_nodes];
+
+        int i=0;
+
+        for(i=0; i<n_local_faces; i++) to_face[i] = RElem.to_face[i];
+        for(i=0; i<n_local_nodes; i++) to_node[i] = RElem.to_node[i];
+
+        Nneigh_elem = RElem.Nneigh_elem;
+
+        Vc = RElem.Vc;
+        Xc = RElem.Xc;
+        Yc = RElem.Yc;
+
+        //DX = RElem.DX;
+        //DY = RElem.DY;
+
+        return *this;
+    }
 
 };
 
@@ -185,6 +211,8 @@ struct MeshData{
 
         emptyarray(elemlist);
         emptyarray(facelist);
+        emptyarray(post_proc_elemlist);
+        emptyarray(polygon_elem_origID);
 
         emptyarray(wall_nodelist);
         emptyarray(upper_wall_nodelist);
@@ -195,6 +223,8 @@ struct MeshData{
 
         emptyarray(Xn);
         emptyarray(Yn);
+        emptyarray(post_Xn);
+        emptyarray(post_Yn);
 
         emptyarray(Ixx);
         emptyarray(Iyy);
@@ -222,6 +252,8 @@ struct MeshData{
     int NtriElem=0;
     int NquadElem=0;
     int Npolygon=0;
+    int NpostProc=0;
+    int Nnodes_postproc=0;
 
     double *Xn=nullptr; // node x coord
     double *Yn=nullptr; // node y coord
@@ -243,6 +275,15 @@ struct MeshData{
     double *Iyy = nullptr;
     double *Ixy = nullptr;
 
+    // PostProcessing ElementList all Triangles
+    // and Quardilaterals with 4 sides only:
+
+    Elem* post_proc_elemlist=nullptr;
+
+    double* post_Xn=nullptr;
+    double* post_Yn=nullptr;
+
+    int *polygon_elem_origID=nullptr;
 
 //    std::map <int, int> elem_gid_to_bid;  // map from global ID to bound ID
 //    std::map <int, int> elem_gid_to_intId;  // map from global ID to interior ID

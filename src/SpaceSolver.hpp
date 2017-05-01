@@ -22,7 +22,7 @@ public:
    virtual void InitSol()=0;
    virtual void UpdateResid(double **Resid_, double **Qn_)=0;
    virtual void ComputeError()=0;
-   virtual void Compute_vertex_sol()=0;
+   virtual void Compute_vertex_sol(const int& oiter)=0;
    virtual void UpdateSolution(double **Qn_)=0;
    virtual void Compute_local_TimeStep(double* dt_cell_)=0;
 
@@ -152,6 +152,8 @@ protected:
    double **Qv=nullptr;       // Solution at the vertices of cells, total no. of vertices long
 
    double **flux_com=nullptr;  // common interface flux, Nfaces long
+
+   int comp_vertex_iter=0;
 
 };
 

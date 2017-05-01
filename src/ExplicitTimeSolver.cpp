@@ -238,7 +238,7 @@ void ExplicitTimeSolver::update_local_timestep(){
     return;
 }
 
-double ExplicitTimeSolver::GetResNorm(){
+double ExplicitTimeSolver::GetResNorm(const int& norm_flag){
 
     double resid_norm_=0.;
 
@@ -246,14 +246,20 @@ double ExplicitTimeSolver::GetResNorm(){
     double *Vol=nullptr; Vol = new double[Nelem];
     for(i=0; i<Nelem; i++) Vol[i] = 1./meshdata_->elemlist[i].Vc;
 
-    resid_norm_ = L2norm(Nelem,Ndof,resid,Vol);
+    if(norm_flag==1){
+        resid_norm_ = L1norm(Nelem,Ndof,resid,Vol);
+    }else if(norm_flag==2){
+        resid_norm_ = L2norm(Nelem,Ndof,resid,Vol);
+    }else{
+        FatalErrorST("\nNorm flag for norm type is wrong\n");
+    }
 
     emptyarray(Vol);
 
     return resid_norm_;
 }
 
-double ExplicitTimeSolver::GetContinuityResNorm(){
+double ExplicitTimeSolver::GetContinuityResNorm(const int& norm_flag){
 
     double resid_norm_=0.;
 
@@ -261,16 +267,23 @@ double ExplicitTimeSolver::GetContinuityResNorm(){
 
     register int i;
 
-    for(i=0; i<Nelem; i++) resid_density[i] = resid[i][0] / meshdata_->elemlist[i].Vc;
+    for(i=0; i<Nelem; i++)
+        resid_density[i] = resid[i][0] / meshdata_->elemlist[i].Vc;
 
-    resid_norm_ = L2norm_perdof(Nelem,resid_density);
+    if(norm_flag==1){
+        resid_norm_ = L1norm_perdof(Nelem,resid_density);
+    }else if(norm_flag==2){
+        resid_norm_ = L2norm_perdof(Nelem,resid_density);
+    }else{
+        FatalErrorST("\nNorm flag for norm type is wrong\n");
+    }
 
     emptyarray(resid_density);
 
     return resid_norm_;
 }
 
-double ExplicitTimeSolver::GetMomentumXResNorm(){
+double ExplicitTimeSolver::GetMomentumXResNorm(const int& norm_flag){
 
     double resid_norm_=0.;
 
@@ -278,16 +291,23 @@ double ExplicitTimeSolver::GetMomentumXResNorm(){
 
     register int i;
 
-    for(i=0; i<Nelem; i++) resid_momentum[i] = resid[i][1]/meshdata_->elemlist[i].Vc;
+    for(i=0; i<Nelem; i++)
+        resid_momentum[i] = resid[i][1]/meshdata_->elemlist[i].Vc;
 
-    resid_norm_ = L2norm_perdof(Nelem,resid_momentum);
+    if(norm_flag==1){
+        resid_norm_ = L1norm_perdof(Nelem,resid_momentum);
+    }else if(norm_flag==2){
+        resid_norm_ = L2norm_perdof(Nelem,resid_momentum);
+    }else{
+        FatalErrorST("\nNorm flag for norm type is wrong\n");
+    }
 
     emptyarray(resid_momentum);
 
     return resid_norm_;
 }
 
-double ExplicitTimeSolver::GetMomentumYResNorm(){
+double ExplicitTimeSolver::GetMomentumYResNorm(const int& norm_flag){
 
     double resid_norm_=0.;
 
@@ -295,16 +315,23 @@ double ExplicitTimeSolver::GetMomentumYResNorm(){
 
     register int i;
 
-    for(i=0; i<Nelem; i++) resid_momentum [i] = resid[i][2]/ meshdata_->elemlist[i].Vc;
+    for(i=0; i<Nelem; i++)
+        resid_momentum [i] = resid[i][2]/ meshdata_->elemlist[i].Vc;
 
-    resid_norm_ = L2norm_perdof(Nelem,resid_momentum);
+    if(norm_flag==1){
+        resid_norm_ = L1norm_perdof(Nelem,resid_momentum);
+    }else if(norm_flag==2){
+        resid_norm_ = L2norm_perdof(Nelem,resid_momentum);
+    }else{
+        FatalErrorST("\nNorm flag for norm type is wrong\n");
+    }
 
     emptyarray(resid_momentum);
 
     return resid_norm_;
 }
 
-double ExplicitTimeSolver::GetEnergyResNorm(){
+double ExplicitTimeSolver::GetEnergyResNorm(const int& norm_flag){
 
     double resid_norm_=0.;
 
@@ -312,9 +339,16 @@ double ExplicitTimeSolver::GetEnergyResNorm(){
 
     register int i;
 
-    for(i=0; i<Nelem; i++) resid_energy [i] = resid[i][3]/ meshdata_->elemlist[i].Vc;
+    for(i=0; i<Nelem; i++)
+        resid_energy [i] = resid[i][3]/ meshdata_->elemlist[i].Vc;
 
-    resid_norm_ = L2norm_perdof(Nelem,resid_energy);
+    if(norm_flag==1){
+        resid_norm_ = L1norm_perdof(Nelem,resid_energy);
+    }else if(norm_flag==2){
+        resid_norm_ = L2norm_perdof(Nelem,resid_energy);
+    }else{
+        FatalErrorST("\nNorm flag for norm type is wrong\n");
+    }
 
     emptyarray(resid_energy);
 

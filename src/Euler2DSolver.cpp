@@ -43,9 +43,9 @@ void Euler2DSolver::setup_solver(MeshData*& meshdata_, SimData& osimdata_
         _notImplemented("Error in parsing scheme order, scheme order is not implemented yet");
     }
 
-    Qv = new double*[Nnodes];
+    Qv = new double*[grid_->Nnodes_postproc];
 
-    for(i=0; i<Nnodes; i++)
+    for(i=0; i<grid_->Nnodes_postproc; i++)
         Qv[i]    = new double[Ndof+1];
 
     flux_com = new double*[Nfaces];
@@ -84,7 +84,7 @@ void Euler2DSolver::Reset_solver(){
 
     //FatalError("After empty Qn");
 
-    emptyarray(Nnodes,Qv);
+    emptyarray(grid_->Nnodes_postproc,Qv);
 
     //FatalError("After empty Qv");
 
@@ -657,66 +657,98 @@ void Euler2DSolver::evaluate_sol(double &Xp, double &Yp, const int& eID, double 
     return;
 }
 
-void Euler2DSolver::Compute_vertex_sol(){
+void Euler2DSolver::Compute_vertex_sol(const int& oiter){
 
-    register int i; int j,eID,iL,fID;
+    if(comp_vertex_iter<oiter){
 
-    double rho=0.0,u=0.0,v=0.0,p=0.0,p_inf=0.0,rhoV_inf=0.,V_inf=0.,rho_inf,T,E;
-    double qq_[4] ={0.,0.,0.,0.};
-    double nx,ny;
+        comp_vertex_iter = oiter;
 
-    for(i=0; i<Nnodes; i++){
+        register int i; int j,eID,iL,fID;
 
-        Qv[i][0] =0.;
-        Qv[i][1] =0.;
-        Qv[i][2] =0.;
-        Qv[i][3] =0.;
-        Qv[i][4] =0.;
+        double rho=0.0,u=0.0,v=0.0,p=0.0,p_inf=0.0,rhoV_inf=0.,V_inf=0.,rho_inf,T,E;
+        double qq_[4] ={0.,0.,0.,0.};
+        double nx,ny;
 
-        for(j=0; j<grid_->Nnode_neighElem[i]; j++){
+        for(i=0; i<Nnodes; i++){
 
-            eID = grid_->node_to_elemlist[i][j];
+            Qv[i][0] =0.;
+            Qv[i][1] =0.;
+            Qv[i][2] =0.;
+            Qv[i][3] =0.;
+            Qv[i][4] =0.;
 
-            gasdata_->CalculateFlowProperties(rho_inf,u,v,p_inf,T,E);
+            for(j=0; j<grid_->Nnode_neighElem[i]; j++){
 
-            V_inf = sqrt(pow(u,2)+pow(v,2));
+                eID = grid_->node_to_elemlist[i][j];
 
-            rhoV_inf= rho_inf * V_inf * V_inf ;
+                gasdata_->CalculateFlowProperties(rho_inf,u,v,p_inf,T,E);
 
-            if(eID>=Nelem){
+                V_inf = sqrt(pow(u,2)+pow(v,2));
 
-                fID = eID-Nelem;
-                iL = grid_->facelist[fID].Lcell;
-                nx = grid_->facelist[fID].nx;
-                ny = grid_->facelist[fID].ny;
+                rhoV_inf= rho_inf * V_inf * V_inf ;
 
-                evaluate_sol(grid_->Xn[i],grid_->Yn[i],iL, &qq_[0]);
+                if(eID>=Nelem){
 
-                if(grid_->facelist[fID].bnd_type==-1)
-                    compute_GhostSol_WallBC(nx,ny,&qq_[0],&qq_[0]); // becareful of debendency between ql,qr
-                else if(grid_->facelist[fID].bnd_type==-2)
-                    compute_GhostSol_farfieldBC(nx,ny,&qq_[0],&qq_[0]);
-                else
-                    FatalError("Wrong face boundary condition for vertex solution");
-            }else{
-                evaluate_sol(grid_->Xn[i],grid_->Yn[i],eID, &qq_[0]);
+                    fID = eID-Nelem;
+                    iL = grid_->facelist[fID].Lcell;
+                    nx = grid_->facelist[fID].nx;
+                    ny = grid_->facelist[fID].ny;
+
+                    evaluate_sol(grid_->Xn[i],grid_->Yn[i],iL, &qq_[0]);
+
+                    if(grid_->facelist[fID].bnd_type==-1)
+                        compute_GhostSol_WallBC(nx,ny,&qq_[0],&qq_[0]); // becareful of debendency between ql,qr
+                    else if(grid_->facelist[fID].bnd_type==-2)
+                        compute_GhostSol_farfieldBC(nx,ny,&qq_[0],&qq_[0]);
+                    else
+                        FatalError("Wrong face boundary condition for vertex solution");
+                }else{
+                    evaluate_sol(grid_->Xn[i],grid_->Yn[i],eID, &qq_[0]);
+                }
+
+                rho = qq_[0];
+                u = qq_[1]/qq_[0];
+                v = qq_[2]/qq_[0];
+
+                p = (gasdata_->gama-1.) * ( qq_[3] - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
+
+                Qv[i][0] += rho;
+                Qv[i][1] += u;
+                Qv[i][2] += v;
+                Qv[i][3] += p;
             }
 
-            rho = qq_[0];
-            u = qq_[1]/qq_[0];
-            v = qq_[2]/qq_[0];
+            for(j=0; j<Ndof; j++)
+                Qv[i][j] = Qv[i][j] / grid_->Nnode_neighElem[i];
 
-            p = (gasdata_->gama-1.) * ( qq_[3] - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
-
-            Qv[i][0] += rho/rho_inf;
-            Qv[i][1] += u/V_inf;
-            Qv[i][2] += v/V_inf;
-            Qv[i][3] += ( 2.*(p-p_inf)/ rhoV_inf );
-            Qv[i][4] += sqrt((u*u)+(v*v)) / sqrt(gasdata_->gama * p /rho);
+            Qv[i][4] = sqrt( pow(Qv[i][1],2) + pow(Qv[i][2],2) )
+                    / sqrt(gasdata_->gama * Qv[i][3] /Qv[i][0]);
+            Qv[i][0] = Qv[i][0] / rho_inf;
+            Qv[i][1] = Qv[i][1] / V_inf;
+            Qv[i][2] = Qv[i][2] / V_inf;
+            Qv[i][3] = 2.0* (Qv[i][3] - p_inf)/rhoV_inf;
         }
 
-        for(j=0; j<Ndof; j++)
-            Qv[i][j] = Qv[i][j] / grid_->Nnode_neighElem[i];
+        // Another loop for the extended node list
+        // that contains new cells centers:
+        //-----------------------------------------
+
+        for(i=Nnodes; i<grid_->Nnodes_postproc; i++){
+
+            eID = grid_->polygon_elem_origID[i-Nnodes];
+
+            rho = Qc[eID][0];
+            u = Qc[eID][1]/Qc[eID][0];
+            v = Qc[eID][2]/Qc[eID][0];
+
+            p = (gasdata_->gama-1.) * ( Qc[eID][3] - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
+
+            Qv[i][0] = rho/rho_inf;
+            Qv[i][1] = u/V_inf;
+            Qv[i][2] = v/V_inf;
+            Qv[i][3] = 2.0* (p - p_inf)/rhoV_inf;
+            Qv[i][4] = sqrt(pow(u,2)+pow(v,2)) / sqrt(gasdata_->gama * p / rho);
+        }
     }
 
     return;
