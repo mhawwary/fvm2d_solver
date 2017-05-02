@@ -23,7 +23,7 @@ int main(int argc, char** argv){
 
     Case.RunSim();            // Main Solution Loop
 
-    Case.PostProcess();       // Dumping Simulation Post Processing data
+    //Case.PostProcess();       // Dumping Simulation Post Processing data
 
     return 0;
 }

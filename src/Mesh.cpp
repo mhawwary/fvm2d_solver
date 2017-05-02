@@ -320,6 +320,17 @@ void Mesh::compute_wallNodes(){
     QuickSort3(Xlow,Ylow,grid_data_->lower_wall_nodelist,0,Nlower-1);
     QuickSort3(Xupp,Yupp,grid_data_->upper_wall_nodelist,0,Nupper-1);
 
+    int gid;
+    for(i=0;i<Nupper;i++){
+        gid = grid_data_->upper_wall_nodelist[i];
+        grid_data_->uppwall_node_gid_to_bid[gid] = i;
+    }
+
+    for(i=0;i<Nlower;i++){
+        gid = grid_data_->lower_wall_nodelist[i];
+        grid_data_->lowwall_node_gid_to_bid[gid] = i;
+    }
+
 //    printf("\n Printing upper Wall node IDs: \n");
 //    for(i=0; i<Nupper; i++){
 //        printf("\n%d %e %e\n",grid_data_->upper_wall_nodelist[i],Xupp[i],Yupp[i]);
@@ -352,9 +363,26 @@ void Mesh::compute_wallNodes(){
         i++;
     }
 
-    std::sort(grid_data_->wall_nodelist
+//    for(i=0; i<grid_data_->Nwallnodes; i++)
+//        printf("\nBefore Sorting nID:%d %e %e",grid_data_->wall_nodelist[i]
+//               ,grid_data_->Xn[grid_data_->wall_nodelist[i]]
+//                ,grid_data_->Yn[grid_data_->wall_nodelist[i]]);
+//    std::cin.get();
+
+    std::sort(&grid_data_->wall_nodelist[1]
               ,grid_data_->wall_nodelist+grid_data_->Nwallnodes
               ,std::greater<int>());
+
+//    for(i=0; i<grid_data_->Nwallnodes; i++)
+//        printf("\nnID:%d %e %e",grid_data_->wall_nodelist[i]
+//               ,grid_data_->Xn[grid_data_->wall_nodelist[i]]
+//                ,grid_data_->Yn[grid_data_->wall_nodelist[i]]);
+//    std::cin.get();
+
+    for(i=0; i<grid_data_->Nwallnodes; i++){
+        gid = grid_data_->wall_nodelist[i];
+        grid_data_->wall_node_gid_to_bid[gid]=i;
+    }
 
     emptyarray(Xupp);
     emptyarray(Yupp);
@@ -543,7 +571,7 @@ void Mesh::compute_ghost_elemData(){
     // Calculation of Ghost cells geometric data:
     //---------------------------------------------
     register int j; int iL,iR;
-    double Xf,Yf,Xc,Yc,nx,ny;
+    double Xf,Yf,Xc,Yc,nx,ny,Dn;
 
     for(j=0; j<grid_data_->Nbndfaces; j++){
         iL = grid_data_->facelist[j].Lcell;
@@ -558,10 +586,14 @@ void Mesh::compute_ghost_elemData(){
 
         grid_data_->elemlist[iR].Vc = grid_data_->elemlist[iL].Vc;
 
-        grid_data_->elemlist[iR].Xc = Xc*((ny*ny)-(nx*nx)) -2*Yc*nx*ny
-                                         - Yf*nx + Xf *(1.0+ny) ;
-        grid_data_->elemlist[iR].Yc = Yc*((nx*nx)-(ny*ny)) -2*Xc*nx*ny
-                                         - Xf*nx + Yf *(1.0-ny) ;
+//        grid_data_->elemlist[iR].Xc = Xc*((ny*ny)-(nx*nx)) -2*Yc*nx*ny
+//                                         - Yf*nx + Xf *(1.0+ny) ;
+//        grid_data_->elemlist[iR].Yc = Yc*((nx*nx)-(ny*ny)) -2*Xc*nx*ny
+//                                         - Xf*nx + Yf *(1.0-ny) ;
+
+        Dn = (Xf-Xc) * nx + (Yf-Yc) * ny ;
+        grid_data_->elemlist[iR].Xc = Xc - 2.0 * Dn *nx;
+        grid_data_->elemlist[iR].Yc = Yc - 2.0 * Dn *ny;
     }
 
     return;

@@ -47,15 +47,24 @@ void SimCase::setup(const std::string &input_fname_){
 
     char eqn_type[100], case_dir[100];
 
+//    if(simdata.eqn_set=="Euler"){
+//        sprintf(eqn_type,"inviscid");
+//        sprintf(case_dir,"%s_%s_%1.1f_%1.1f",simdata.case_title.c_str(),eqn_type
+//                ,gasdata.alpha_deg_,gasdata.Mach_);
+//    }else{
+//        sprintf(eqn_type,"viscous");
+//        sprintf(case_dir,"%s_%s_%1.1f_%1.1f_%3.0f",simdata.case_title.c_str(),eqn_type
+//                ,gasdata.alpha_deg_,gasdata.Mach_,gasdata.Re_no);
+//    }
+
     if(simdata.eqn_set=="Euler"){
-        sprintf(eqn_type,"inviscid");
-        sprintf(case_dir,"%s_%s_%1.1f_%1.1f",simdata.case_title.c_str(),eqn_type
-                ,gasdata.alpha_deg_,gasdata.Mach_);
+        if(gasdata.Mach_==0.5) sprintf(eqn_type,"case1_OAA%d",simdata.scheme_order);
+        else if(gasdata.Mach_==0.85) sprintf(eqn_type,"case2_OAA%d",simdata.scheme_order);
     }else{
-        sprintf(eqn_type,"viscous");
-        sprintf(case_dir,"%s_%s_%1.1f_%1.1f_%3.0f",simdata.case_title.c_str(),eqn_type
-                ,gasdata.alpha_deg_,gasdata.Mach_,gasdata.Re_no);
+        sprintf(eqn_type,"case3_OAA%d",simdata.scheme_order);
     }
+
+    sprintf(case_dir,"%s_%s",simdata.case_title.c_str(),eqn_type);
 
     mkdir(simdata.case_postproc_dir.c_str(),0777);  // parent directory if not already exists
 
@@ -70,7 +79,7 @@ void SimCase::setup(const std::string &input_fname_){
 
     chdir(case_dir);
 
-    mkdir("./BINARY",0777);
+    //mkdir("./BINARY",0777);
     mkdir("./field_output",0777);
     mkdir("./surface_output",0777);
     mkdir("./converg_hist",0777);
@@ -139,16 +148,7 @@ void SimCase::InitSim(){
 
 void SimCase::RunSim(){
 
-    //double gtime=fvm_space_solver->GetPhyTime();
-
-    double dt_min,dt_max;
-
-    double Resid_sum_,cont_Resid_norm
-            ,Xmom_Resid_norm,Ymom_Resid_norm
-            ,Energy_Resid_norm;
-    double **Qv=nullptr;
-
-    int n=0;
+    int n=0; double resid_sum_=1e5;
 
     // Computing and dumping Initial Residual:
     //----------------------------------------------
@@ -156,98 +156,112 @@ void SimCase::RunSim(){
     time_solver->SolveOneStep(fvm_space_solver->GetNumSolution());
     n=time_solver->GetIter();  // update iteration number
 
-    cont_Resid_norm = time_solver->GetContinuityResNorm(2);
-    Xmom_Resid_norm = time_solver->GetMomentumXResNorm(2);
-    Ymom_Resid_norm = time_solver->GetMomentumYResNorm(2);
-    Energy_Resid_norm = time_solver->GetEnergyResNorm(2);
-    Resid_sum_ = time_solver->GetResNorm(2);
+    PostProcess(n, resid_sum_);
+//    cont_Resid_norm = time_solver->GetContinuityResNorm(2);
+//    Xmom_Resid_norm = time_solver->GetMomentumXResNorm(2);
+//    Ymom_Resid_norm = time_solver->GetMomentumYResNorm(2);
+//    Energy_Resid_norm = time_solver->GetEnergyResNorm(2);
+//    Resid_sum_ = time_solver->GetResNorm(2);
 
-    printf("\nL2, Iter: %d, Rsum:%e, rho:%e, rhoU:%e, rhoV:%e, E:%e"
-           ,n,Resid_sum_,cont_Resid_norm
-           , Xmom_Resid_norm,Ymom_Resid_norm
-           ,Energy_Resid_norm);
+//    printf("\nL2, Iter: %d, Rsum:%e, rho:%e, rhoU:%e, rhoV:%e, E:%e"
+//           ,n,Resid_sum_,cont_Resid_norm
+//           , Xmom_Resid_norm,Ymom_Resid_norm
+//           ,Energy_Resid_norm);
 
-    dump_resid_L2norm(n,Resid_sum_,cont_Resid_norm
-                    ,Xmom_Resid_norm,Ymom_Resid_norm
-                    ,Energy_Resid_norm);
+//    dump_resid_L2norm(n,Resid_sum_,cont_Resid_norm
+//                    ,Xmom_Resid_norm,Ymom_Resid_norm
+//                    ,Energy_Resid_norm);
 
     // Main Solution Loop
 
-    while (cont_Resid_norm>simdata.conv_threshold){
+    while (resid_sum_>simdata.conv_threshold){
 
             time_solver->SolveOneStep(fvm_space_solver->GetNumSolution());
 
             n=time_solver->GetIter();
 
-            if(n%simdata.conv_hist_pfreq==0){
-
-                //Resid_norm_= time_solver->GetResNorm();
-                cont_Resid_norm = time_solver->GetContinuityResNorm(2);
-                Xmom_Resid_norm = time_solver->GetMomentumXResNorm(2);
-                Ymom_Resid_norm = time_solver->GetMomentumYResNorm(2);
-                Energy_Resid_norm = time_solver->GetEnergyResNorm(2);
-                Resid_sum_ = time_solver->GetResNorm(2);
-
-                printf("\nL2, Iter: %d, Rsum:%e, rho:%e, rhoU:%e, rhoV:%e, E:%e"
-                       ,n,Resid_sum_,cont_Resid_norm
-                       , Xmom_Resid_norm,Ymom_Resid_norm
-                       ,Energy_Resid_norm);
-
-                dump_resid_L2norm(n,Resid_sum_,cont_Resid_norm
-                                ,Xmom_Resid_norm,Ymom_Resid_norm
-                                ,Energy_Resid_norm);
-
-                if(n%simdata.forces_print_freq==0){
-                    fvm_space_solver->Compute_vertex_sol(n);
-                    Qv = fvm_space_solver->GetVertexSolution();
-                    dump_wall_data(Qv,n);
-                }
-
-                if(n%simdata.fields_print_freq==0){
-                    fvm_space_solver->Compute_vertex_sol(n);
-                    Qv = fvm_space_solver->GetVertexSolution();
-                    dump_field_data(Qv,n);
-                }
-
-                if(simdata.use_local_timeStep==1 && n<=2000){
-                    time_solver->update_local_timestep();
-                    dt_min = time_solver->getdt_min();
-                    dt_max = time_solver->getdt_max();
-                    printf("\ndt_min: %e,  dt_max: %e",dt_min, dt_max);
-                }
-            }
+            if(n%simdata.conv_hist_pfreq==0) PostProcess(n, resid_sum_);
 
             if(n>5e7) break;
         }
 
-    // Printing the final Residual:
-    //------------------------------------
-    //Resid_norm_= time_solver->GetResNorm();
-    cont_Resid_norm = time_solver->GetContinuityResNorm(2);
-    Xmom_Resid_norm = time_solver->GetMomentumXResNorm(2);
-    Ymom_Resid_norm = time_solver->GetMomentumYResNorm(2);
-    Energy_Resid_norm = time_solver->GetEnergyResNorm(2);
-    Resid_sum_ = time_solver->GetResNorm(2);
+    PostProcess(n, resid_sum_);
+//    // Printing the final Residual:
+//    //------------------------------------
+//    //Resid_norm_= time_solver->GetResNorm();
+//    cont_Resid_norm = time_solver->GetContinuityResNorm(2);
+//    Xmom_Resid_norm = time_solver->GetMomentumXResNorm(2);
+//    Ymom_Resid_norm = time_solver->GetMomentumYResNorm(2);
+//    Energy_Resid_norm = time_solver->GetEnergyResNorm(2);
+//    Resid_sum_ = time_solver->GetResNorm(2);
 
-    printf("\nIter: %d, Rsum:%e, rho:%e, rhoU:%e, rhoV:%e, E:%e\n\n"
-           ,n,Resid_sum_,cont_Resid_norm
-           , Xmom_Resid_norm,Ymom_Resid_norm
-           ,Energy_Resid_norm);
+//    printf("\nIter: %d, Rsum:%e, rho:%e, rhoU:%e, rhoV:%e, E:%e\n\n"
+//           ,n,Resid_sum_,cont_Resid_norm
+//           , Xmom_Resid_norm,Ymom_Resid_norm
+//           ,Energy_Resid_norm);
 
-    dump_resid_L2norm(n,Resid_sum_,cont_Resid_norm
-                    ,Xmom_Resid_norm,Ymom_Resid_norm
-                    ,Energy_Resid_norm);
+//    dump_resid_L2norm(n,Resid_sum_,cont_Resid_norm
+//                    ,Xmom_Resid_norm,Ymom_Resid_norm
+//                    ,Energy_Resid_norm);
 
-    fvm_space_solver->Compute_vertex_sol(n);
-    Qv = fvm_space_solver->GetVertexSolution();
-    dump_wall_data(Qv,n);
-    dump_field_data(Qv,n);
+//    fvm_space_solver->Compute_vertex_sol(n);
+//    Qv = fvm_space_solver->GetVertexSolution();
+//    dump_wall_data(Qv,n);
+//    dump_field_data(Qv,n);
 
     return;
 }
 
-void SimCase::PostProcess(){
+void SimCase::PostProcess(const int& iter_, double& Resid_sum_){
 
+    double dt_min,dt_max;
+
+    double cont_Resid_norm
+            ,Xmom_Resid_norm,Ymom_Resid_norm
+            ,Energy_Resid_norm;
+
+    double **Qv=nullptr,*p_wall_=nullptr, *tau_xx_wall_=nullptr, *tau_xy_wall_=nullptr, *tau_yy_wall_=nullptr, *Cf_=nullptr;
+
+    cont_Resid_norm   = time_solver->GetContinuityResNorm(2);
+    Xmom_Resid_norm   = time_solver->GetMomentumXResNorm(2);
+    Ymom_Resid_norm   = time_solver->GetMomentumYResNorm(2);
+    Energy_Resid_norm = time_solver->GetEnergyResNorm(2);
+    Resid_sum_        = time_solver->GetResNorm(2);
+
+    printf("\nL2, Iter: %d, Rsum:%e, rho:%e, rhoU:%e, rhoV:%e, E:%e"
+           ,iter_,Resid_sum_,cont_Resid_norm
+           , Xmom_Resid_norm,Ymom_Resid_norm
+           ,Energy_Resid_norm);
+
+    dump_resid_L2norm(iter_,Resid_sum_,cont_Resid_norm
+                      ,Xmom_Resid_norm,Ymom_Resid_norm
+                      ,Energy_Resid_norm);
+
+    if(iter_%simdata.forces_print_freq==0){
+        fvm_space_solver->Compute_vertex_sol(iter_);
+        Qv = fvm_space_solver->GetVertexSolution();
+        //fvm_space_solver->Get_wall_stress_tensor(p_wall_,tau_xx_wall_,tau_xy_wall_,tau_yy_wall_);
+        p_wall_ = fvm_space_solver->Get_wall_pressure();
+        tau_xx_wall_ = fvm_space_solver->Get_tau_xx();
+        tau_xy_wall_ = fvm_space_solver->Get_tau_xy();
+        tau_yy_wall_ = fvm_space_solver->Get_tau_yy();
+        Cf_ = fvm_space_solver->Get_wall_skin_friction();
+        dump_wall_data(iter_,Qv,p_wall_,tau_xx_wall_,tau_xy_wall_,tau_yy_wall_,Cf_);
+    }
+
+    if(iter_%simdata.fields_print_freq==0){
+        fvm_space_solver->Compute_vertex_sol(iter_);
+        Qv = fvm_space_solver->GetVertexSolution();
+        dump_field_data(Qv,iter_);
+    }
+
+    if(simdata.use_local_timeStep==1 && iter_<=5000){
+        //if(iter_>10000) fvm_space_solver->SetCFL(1.25*simdata.CFL_);
+        time_solver->update_local_timestep();
+        dt_min = time_solver->getdt_min();
+        dt_max = time_solver->getdt_max();
+        printf("\ndt_min: %e,  dt_max: %e",dt_min, dt_max);
+    }
 
     return;
 }
@@ -305,42 +319,84 @@ void SimCase::dump_resid_L2norm(const int& iter_, double& resid_sum_
     return;
 }
 
-void SimCase::dump_wall_data(double **Qv, const int& oiter){
+void SimCase::dump_wall_data(const int& oiter, double** Qv
+                             ,double* p_wall_, double* tau_xx_wall_
+                             , double* tau_xy_wall_, double* tau_yy_wall_
+                             , double* Cf_){
 
     register int i; int nID;
 
-    char *fname=nullptr; fname=new char[100];
+//    char *fname=nullptr; fname=new char[100];
 
-    sprintf(fname,"%s/surface_output/upper_wall_data_%d.dat"
-            ,simdata.case_postproc_dir.c_str(),oiter);
+//    sprintf(fname,"%s/surface_output/upper_wall_data_%d.dat"
+//            ,simdata.case_postproc_dir.c_str(),oiter);
 
-    FILE*  outfile1=fopen(fname,"wt");
+//    FILE*  outfile1=fopen(fname,"wt");
 
-    for(i=0; i<grid_data->NupperWallnodes; i++){
-        nID = grid_data->upper_wall_nodelist[i];
+//    for(i=0; i<grid_data->NupperWallnodes; i++){
+//        nID = grid_data->upper_wall_nodelist[i];
 
-        fprintf(outfile1,"%e %e %e %e %e %e %e\n",grid_data->Xn[nID] ,grid_data->Yn[nID]
-                , Qv[nID][0], Qv[nID][1], Qv[nID][2], Qv[nID][3], Qv[nID][4]);
-    }
+//        fprintf(outfile1,"%e %e %e %e %e %e %e\n",grid_data->Xn[nID] ,grid_data->Yn[nID]
+//                , Qv[nID][0], Qv[nID][1], Qv[nID][2], Qv[nID][3], Qv[nID][4]);
+//    }
 
-    fclose(outfile1);
-    emptyarray(fname);
+//    fclose(outfile1);
+//    emptyarray(fname);
 
+//    fname=new char[100];
+
+//    sprintf(fname,"%s/surface_output/lower_wall_data_%d.dat"
+//            ,simdata.case_postproc_dir.c_str(),oiter);
+
+//    FILE*  outfile=fopen(fname,"wt");
+
+//    for(i=0; i<grid_data->NlowerWallnodes; i++){
+//        nID = grid_data->lower_wall_nodelist[i];
+
+//        fprintf(outfile,"%e %e %e %e %e %e %e\n",grid_data->Xn[nID] ,grid_data->Yn[nID]
+//                , Qv[nID][0], Qv[nID][1], Qv[nID][2], Qv[nID][3],  Qv[nID][4]);
+//    }
+
+//    fclose(outfile);
+//    emptyarray(fname);
+
+    // Dump Wall flow variables Cp, M,u,v,rho normalized by free stream values:
+    //---------------------------------------------------------------------------
+    char *fname=nullptr;
     fname=new char[100];
 
-    sprintf(fname,"%s/surface_output/lower_wall_data_%d.dat"
+    sprintf(fname,"%s/surface_output/wall_flow_vars_%d.dat"
             ,simdata.case_postproc_dir.c_str(),oiter);
 
     FILE*  outfile=fopen(fname,"wt");
 
-    for(i=0; i<grid_data->NlowerWallnodes; i++){
-        nID = grid_data->lower_wall_nodelist[i];
+    for(i=0; i<grid_data->Nwallnodes; i++){
 
+        nID = grid_data->wall_nodelist[i];
         fprintf(outfile,"%e %e %e %e %e %e %e\n",grid_data->Xn[nID] ,grid_data->Yn[nID]
                 , Qv[nID][0], Qv[nID][1], Qv[nID][2], Qv[nID][3],  Qv[nID][4]);
     }
 
     fclose(outfile);
+    emptyarray(fname);
+
+    // Dump Wall stress data for CL and CD calculations
+    //--------------------------------------------------
+    fname = new char[100];
+    sprintf(fname,"%s/surface_output/wall_stress_tensor_%d.dat"
+            ,simdata.case_postproc_dir.c_str(),oiter);
+
+    FILE* outfile2=fopen(fname,"wt");
+
+    for(i=0; i<grid_data->Nwallnodes; i++){
+
+        nID = grid_data->wall_nodelist[i];
+        fprintf(outfile2,"%e %e %e %e %e %e %e\n",grid_data->Xn[nID] ,grid_data->Yn[nID]
+                , p_wall_[i], tau_xx_wall_[i]
+                , tau_xy_wall_[i], tau_yy_wall_[i],Cf_[i]);
+    }
+
+    fclose(outfile2);
     emptyarray(fname);
 
     return;

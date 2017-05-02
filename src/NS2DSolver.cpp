@@ -31,22 +31,62 @@ void NS2DSolver::setup_solver(MeshData*& meshdata_, SimData& osimdata_
     for(i=0; i<Nelem_extend; i++)
         Qc[i]    = new double[Ndof];
 
-    if(scheme_order==2){
-        dQdx = new double*[Nelem];
-        dQdy = new double*[Nelem];
+    dQdx = new double*[Nelem];
+    dQdy = new double*[Nelem];
 
-        for(i=0; i<Nelem; i++){
-            dQdx[i]  = new double[Ndof];
-            dQdy[i]  = new double[Ndof];
-        }
-    }else if(scheme_order!=1 && scheme_order!=2){
-        _notImplemented("Error in parsing scheme order, scheme order is not implemented yet");
+    for(i=0; i<Nelem; i++){
+        dQdx[i]  = new double[Ndof];
+        dQdy[i]  = new double[Ndof];
     }
 
     Qv = new double*[grid_->Nnodes_postproc];
 
     for(i=0; i<grid_->Nnodes_postproc; i++)
         Qv[i]    = new double[Ndof+1];
+
+    dudx_wall = new double[grid_->Nwallnodes];
+    dudy_wall = new double[grid_->Nwallnodes];
+    dvdx_wall = new double[grid_->Nwallnodes];
+    dvdy_wall = new double[grid_->Nwallnodes];
+
+    wall_node_nx = new double[grid_->Nwallnodes];
+    wall_node_ny = new double[grid_->Nwallnodes];
+
+    tau_t_wall_  = new double[grid_->Nwallnodes];
+    tau_xx_wall_ = new double[grid_->Nwallnodes];
+    tau_yy_wall_ = new double[grid_->Nwallnodes];
+    tau_xy_wall_ = new double[grid_->Nwallnodes];
+    Cf_       = new double[grid_->Nwallnodes];
+    p_wall_   = new double[grid_->Nwallnodes];
+
+    for(i=0; i<grid_->Nwallnodes; i++){
+        wall_node_nx[i] =0.0;
+        wall_node_ny[i] =0.0;
+    }
+
+    int v0,v1,bid; double nx,ny;
+
+    for(i=0; i<Nbndfaces; i++){
+
+        if(grid_->facelist[i].bnd_type==-1){
+            v0 = grid_->facelist[i].v0;
+            v1 = grid_->facelist[i].v1;
+            nx = grid_->facelist[i].nx;
+            ny = grid_->facelist[i].ny;
+
+            bid = grid_->wall_node_gid_to_bid[v0];
+            wall_node_nx[bid] += nx;
+            wall_node_ny[bid] += ny;
+            bid = grid_->wall_node_gid_to_bid[v1];
+            wall_node_nx[bid] += nx;
+            wall_node_ny[bid] += ny;
+        }
+    }
+
+    for(i=0; i<grid_->Nwallnodes; i++){
+        wall_node_nx[i] =0.5*wall_node_nx[i];
+        wall_node_ny[i] =0.5*wall_node_ny[i];
+    }
 
     flux_com = new double*[Nfaces];
     visc_flux_com = new double*[Nfaces];
@@ -67,20 +107,27 @@ void NS2DSolver::setup_solver(MeshData*& meshdata_, SimData& osimdata_
 
 void NS2DSolver::Reset_solver(){
 
-    //FatalError("Inside NS2DSolver Destructor");
-
     emptyarray(Nelem_extend,Qc);
     emptyarray(Nelem,dQdx);
     emptyarray(Nelem,dQdy);
 
-    //FatalError("After empty Qn");
-
     emptyarray(grid_->Nnodes_postproc,Qv);
-
-    //FatalError("After empty Qv");
 
     emptyarray(Nfaces,flux_com);
     emptyarray(Nfaces,visc_flux_com);
+
+    emptyarray(dudx_wall);
+    emptyarray(dudy_wall);
+    emptyarray(dvdx_wall);
+    emptyarray(dvdy_wall);
+    emptyarray(wall_node_nx);
+    emptyarray(wall_node_ny);
+    emptyarray(tau_t_wall_);
+    emptyarray(tau_xx_wall_);
+    emptyarray(tau_yy_wall_);
+    emptyarray(tau_xy_wall_);
+    emptyarray(Cf_);
+    emptyarray(p_wall_);
 
     return;
 }
@@ -110,7 +157,7 @@ void NS2DSolver::UpdateResid(double **Resid_, double **Qc_){
 
     SetGhostVariables();
 
-    if(scheme_order==2) Reconstruct_sol();
+    Reconstruct_sol();
 
     // Boundary Face loop to calculate the common interface fluxes:
     //----------------------------------------------------
@@ -138,15 +185,15 @@ void NS2DSolver::UpdateResid(double **Resid_, double **Qc_){
 
         Compute_common_inviscidflux(&Ql[0],&Qr[0],nx,ny, &flux_com[j][0]);
 
-        for(k=0; k<Ndof; k++){
-            dQl_[0][k] = dQdx[iL][k]; dQl_[1][k] = dQdy[iL][k];
-            dQr_[0][k] = 0.0; dQr_[1][k] = 0.0;
-        }
+//        for(k=0; k<Ndof; k++){
+//            dQl_[0][k] = dQdx[iL][k]; dQl_[1][k] = dQdy[iL][k];
+//            dQr_[0][k] = 0.0; dQr_[1][k] = 0.0;
+//        }
 
         Compute_common_facesol(&Ql[0],&Qr[0],&Qf_[0]);
 
-        Compute_common_bound_viscousflux(j,&Qc[iL][0],&Qc[iR][0],&Qf_[0]
-                , dQl_,dQr_,&visc_flux_com[j][0]);
+        Compute_common_bound_viscousflux(j,&Qc[iL][0],&Qc[iR][0]
+                ,&Qf_[0], &visc_flux_com[j][0]);
     }
 
     // Interior faces
@@ -552,7 +599,7 @@ void NS2DSolver::Compute_common_face_gradient(const int &fID, const double *Ql, 
     dl = sqrt( pow(lx,2) + pow(ly,2) );
     lx = lx/dl; ly = ly/dl;
 
-    if(simdata_->ViscFlux=="ZJWang"){
+    if(simdata_->ViscFlux=="ZJWang1"){
         int v0,v1;
         double tx,ty,dtau;
         v0 = grid_->facelist[fID].v0 ;
@@ -579,35 +626,149 @@ void NS2DSolver::Compute_common_face_gradient(const int &fID, const double *Ql, 
                 dQ_dtau = 0.5 * (dQl_dtau+dQr_dtau);
             }
 
-            double DD = lx*ty - ly *tx; if(DD==0) FatalError_exit("\nProblem in Face Gradient \n");
+            double DD = lx*ty - ly *tx;
             dQf_[0][k] = ( (dQdl *ty) - (dQ_dtau * ly) ) / DD;
             dQf_[1][k] = ( (-dQdl *tx) + (dQ_dtau * lx) ) / DD;
-
-            if(std::isnan(dQf_[0][k]) || std::isnan(dQf_[1][k])){
-                printf("\nTruobled face: %d, bndtype:%d gradients are nan: %e %e"
-                       ,fID, grid_->facelist[fID].bnd_type, dQf_[0][k], dQf_[1][k]);
-                std::cin.get();
-            }
         }
+    }else if(simdata_->ViscFlux=="ZJWang2"){
 
-    }else if(simdata_->ViscFlux=="CarlGooch"){
+        int v0,v1;
+        double tx,ty,dtau,Af;
+        double Ql_t0[4]={0.,0.,0.,0.},Ql_t1[4]={0.,0.,0.,0.};
+        double Qr_t0[4]={0.,0.,0.,0.},Qr_t1[4]={0.,0.,0.,0.};
 
-        double ex,ey,dQx,dQy,dQdl;
+        v0 = grid_->facelist[fID].v0 ;
+        v1 = grid_->facelist[fID].v1 ;
+        Af = grid_->facelist[fID].Af ;
 
-        ex = -ly; ey = lx;
+        evaluate_sol_visc(grid_->Xn[v0],grid_->Yn[v0],iL,&Ql_t0[0]); // left element face value at v0
+        evaluate_sol_visc(grid_->Xn[v1],grid_->Yn[v1],iL,&Ql_t1[0]); // left element face value at v1
 
+        evaluate_sol_visc(grid_->Xn[v0],grid_->Yn[v0],iR,&Qr_t0[0]); // right element face value at v0
+        evaluate_sol_visc(grid_->Xn[v1],grid_->Yn[v1],iR,&Qr_t1[0]); // eight element face value at v1
+
+        tx = grid_->Xn[v1] - grid_->Xn[v0] ;
+        ty = grid_->Yn[v1] - grid_->Yn[v0] ;
+        dtau = sqrt( pow(tx,2) + pow(ty,2) );
+        tx = tx/dtau; ty = ty/dtau;
+
+        double dQdl,dQl_dtau,dQr_dtau,dQ_dtau;
         for(k=0; k<Ndof; k++){
-            dQx = 0.5 *(dQl_[0][k] + dQr_[0][k]);
-            dQy = 0.5 *(dQl_[1][k] + dQr_[1][k]);
 
             dQdl = (Qr[k] - Ql[k] )/ dl;
 
-            dQf_[0][k] = dQdl * lx + (dQx*ex+dQy*ey)*ex;
-            dQf_[1][k] = dQdl * ly + (dQx*ex+dQy*ey)*ey;
+            dQl_dtau = (Ql_t1[k]-Ql_t0[k]) / Af;
+            dQr_dtau = (Qr_t1[k]-Qr_t0[k]) / Af;
+
+            dQ_dtau = 0.5 * (dQl_dtau+dQr_dtau);
+
+            double DD = lx*ty - ly *tx;
+            dQf_[0][k] = ( (dQdl *ty) - (dQ_dtau * ly) ) / DD;
+            dQf_[1][k] = ( (-dQdl *tx) + (dQ_dtau * lx) ) / DD;
         }
-    }else{
-        _notImplemented("Viscous Flux treatment is not implemented");
+
     }
+
+//    }else if(simdata_->ViscFlux=="CarlGooch"){
+
+//        double ex,ey,dQx,dQy,dQdl;
+
+//        ex = -ly; ey = lx;
+
+//        for(k=0; k<Ndof; k++){
+//            dQx = 0.5 *(dQl_[0][k] + dQr_[0][k]);
+//            dQy = 0.5 *(dQl_[1][k] + dQr_[1][k]);
+
+//            dQdl = (Qr[k] - Ql[k] )/ dl;
+
+//            dQf_[0][k] = dQdl * lx + (dQx*ex+dQy*ey)*ex;
+//            dQf_[1][k] = dQdl * ly + (dQx*ex+dQy*ey)*ey;
+//        }
+//    }else{
+//        _notImplemented("Viscous Flux treatment is not implemented");
+//    }
+
+    return;
+}
+
+void NS2DSolver::Compute_common_bound_face_gradient(const int &fID, const double *Ql
+                                                    , const double *Qr, double **dQf_){
+
+    // Unbiased Averaging:
+    //---------------------------
+
+    int k,iL,iR;
+    double Xcl,Xcr,Ycl,Ycr,lx,ly,dl;
+
+    iL = grid_->facelist[fID].Lcell;
+    iR = grid_->facelist[fID].Rcell;
+
+    Xcl = grid_->elemlist[iL].Xc;
+    Ycl = grid_->elemlist[iL].Yc;
+    Xcr = grid_->elemlist[iR].Xc;
+    Ycr = grid_->elemlist[iR].Yc;
+
+    lx = (Xcr-Xcl);
+    ly = (Ycr-Ycl);
+    dl = sqrt( pow(lx,2) + pow(ly,2) );
+    lx = lx/dl; ly = ly/dl;
+
+    //if(simdata_->ViscFlux=="ZJWang1"){
+        int v0,v1;
+        double tx,ty,dtau,nx,ny,Af;
+        double Ql_t0[4]={0.,0.,0.,0.},Ql_t1[4]={0.,0.,0.,0.};
+        double Qr_t0[4]={0.,0.,0.,0.},Qr_t1[4]={0.,0.,0.,0.};
+
+        v0 = grid_->facelist[fID].v0 ;
+        v1 = grid_->facelist[fID].v1 ;
+        nx = grid_->facelist[fID].nx ;
+        ny = grid_->facelist[fID].ny ;
+        Af = grid_->facelist[fID].Af ;
+
+        evaluate_sol_visc(grid_->Xn[v0],grid_->Yn[v0],iL,&Ql_t0[0]); // face value at v0
+        evaluate_sol_visc(grid_->Xn[v1],grid_->Yn[v1],iL,&Ql_t1[0]); // face value at v1
+
+        compute_GhostSol_WallBC(nx,ny,&Ql_t0[0],&Qr_t0[0]);   // corressponding ghost face value at v0
+        compute_GhostSol_WallBC(nx,ny,&Ql_t1[0],&Qr_t1[0]);   // corressponding ghost face value at v1
+
+        tx = grid_->Xn[v1] - grid_->Xn[v0] ;
+        ty = grid_->Yn[v1] - grid_->Yn[v0] ;
+        dtau = sqrt( pow(tx,2) + pow(ty,2) );
+        tx = tx/dtau; ty = ty/dtau;
+
+        double dQdl,dQl_dtau,dQr_dtau,dQ_dtau;
+        for(k=0; k<Ndof; k++){
+
+            dQdl = (Qr[k] - Ql[k] )/ dl;
+
+            dQl_dtau = (Ql_t1[k]-Ql_t0[k]) / Af;
+            dQr_dtau = (Qr_t1[k]-Qr_t0[k]) / Af;
+
+            dQ_dtau = 0.5 * (dQl_dtau+dQr_dtau);
+
+            double DD = lx*ty - ly *tx;
+            dQf_[0][k] = ( (dQdl *ty) - (dQ_dtau * ly) ) / DD;
+            dQf_[1][k] = ( (-dQdl *tx) + (dQ_dtau * lx) ) / DD;
+        }
+
+    //}else if(simdata_->ViscFlux=="CarlGooch"){
+
+//        double ex,ey,dQx,dQy,dQdl;
+
+//        ex = -ly; ey = lx;
+
+//        for(k=0; k<Ndof; k++){
+//            dQx = 0.5 *(dQl_[0][k] + dQr_[0][k]);
+//            dQy = 0.5 *(dQl_[1][k] + dQr_[1][k]);
+
+//            dQdl = (Qr[k] - Ql[k] )/ dl;
+
+//            dQf_[0][k] = dQdl * lx + (dQx*ex+dQy*ey)*ex;
+//            dQf_[1][k] = dQdl * ly + (dQx*ex+dQy*ey)*ey;
+//        }
+    //}else{
+       // _notImplemented("Viscous Flux treatment is not implemented");
+    //}
 
     return;
 }
@@ -620,26 +781,24 @@ void NS2DSolver::Compute_common_viscousflux(const int &fID, const double *Ql
 
     double Ux,Uy,Vx,Vy,Tx,Ty,q_x,q_y;
     double Tau_xx,Tau_xy,Tau_yy,Tau;
-    //double Qf_[4]={0.,0.,0.,0.};
+
     double **dQf_=nullptr;
     dQf_ = new double*[2];
     dQf_[0] = new double[Ndof];
     dQf_[1] = new double[Ndof];
 
-//    Compute_common_facesol(Ql,Qr,Qf_);
-
     Compute_common_face_gradient(fID,Ql,Qr,dQl_,dQr_,dQf_);
-
-    Ux = ( dQf_[0][1] - ( Qf_[1] * dQf_[0][0]/ pow(Qf_[0],2) ) ) / Qf_[0] ;
-    Uy = ( dQf_[1][1] - ( Qf_[1] * dQf_[1][0]/ pow(Qf_[0],2) ) ) / Qf_[0] ;
-    Vx = ( dQf_[0][2] - ( Qf_[2] * dQf_[0][0]/ pow(Qf_[0],2) ) ) / Qf_[0] ;
-    Vy = ( dQf_[1][2] - ( Qf_[2] * dQf_[1][0]/ pow(Qf_[0],2) ) ) / Qf_[0] ;
 
     double gama = gasdata_->gama, Mu_i = gasdata_->Mu_inf;
     double rho_ = Qf_[0],u=Qf_[1]/Qf_[0],v=Qf_[2]/Qf_[0],t1,t2,t3;
 
+    Ux = ( dQf_[0][1] - ( u * dQf_[0][0] ) ) / rho_ ;
+    Uy = ( dQf_[1][1] - ( u * dQf_[1][0] ) ) / rho_  ;
+    Vx = ( dQf_[0][2] - ( v * dQf_[0][0] ) ) / rho_  ;
+    Vy = ( dQf_[1][2] - ( v * dQf_[1][0] ) ) / rho_  ;
+
     t1 = rho_ * dQf_[0][3];
-    t2 = ( Qf_[3] - (pow(Qf_[1],2)+pow(Qf_[2],2))/rho_ ) *dQf_[0][0];
+    t2 = ( Qf_[3] - (pow(Qf_[1],2)+pow(Qf_[2],2))/rho_ ) * dQf_[0][0];
     t3 = Qf_[1] * dQf_[0][1] + Qf_[2] * dQf_[0][2];
     Tx = gama*(gama-1.0) * ( t1 - t2 - t3 ) / pow(rho_,2) ;
 
@@ -652,8 +811,8 @@ void NS2DSolver::Compute_common_viscousflux(const int &fID, const double *Ql
     q_y = Mu_i * Ty / ((gama-1.0) * gasdata_->Prndtl);
 
     Tau = Ux + Vy;
-    Tau_xx = Mu_i * ( 2*Ux + Lambda_stokes * Tau);
-    Tau_yy = Mu_i * ( 2*Vy + Lambda_stokes * Tau);
+    Tau_xx = Mu_i * ( 2.0*Ux + Lambda_stokes * Tau);
+    Tau_yy = Mu_i * ( 2.0*Vy + Lambda_stokes * Tau);
     Tau_xy = Mu_i * ( Uy + Vx );
 
     flux_[0] = 0.0;
@@ -668,7 +827,7 @@ void NS2DSolver::Compute_common_viscousflux(const int &fID, const double *Ql
 
 void NS2DSolver::Compute_common_bound_viscousflux(const int &fID, const double *Ql
                                                   , const double *Qr, const double *Qf_
-                                                  , double **dQl_,double **dQr_, double *flux_){
+                                                  , double *flux_){
 
     if(simdata_->FarFieldBC=="Extrapolation"){
 
@@ -695,24 +854,28 @@ void NS2DSolver::Compute_common_bound_viscousflux(const int &fID, const double *
             dQf_[0] = new double[4];
             dQf_[1] = new double[4];
 
-            Compute_common_face_gradient(fID,Ql,Qr,dQl_,dQr_,dQf_);
-
-            Ux = ( dQf_[0][1] ) / Qf_[0] ; // d(RhoU)_dx
-            Uy = ( dQf_[1][1] ) / Qf_[0] ; // d(RhoU)_dy
-            Vx = ( dQf_[0][2] ) / Qf_[0] ; // d(RhoV)_dx
-            Vy = ( dQf_[1][2] ) / Qf_[0] ; // d(RhoV)_dy
+            Compute_common_bound_face_gradient(fID,Ql,Qr,dQf_);
 
             double Mu_i = gasdata_->Mu_inf;
+            double rho_ = Qf_[0],u=Qf_[1]/Qf_[0],v=Qf_[2]/Qf_[0];
+
+            Ux = ( dQf_[0][1] - ( u * dQf_[0][0] ) ) / rho_ ;
+            Uy = ( dQf_[1][1] - ( u * dQf_[1][0] ) ) / rho_  ;
+            Vx = ( dQf_[0][2] - ( v * dQf_[0][0] ) ) / rho_  ;
+            Vy = ( dQf_[1][2] - ( v * dQf_[1][0] ) ) / rho_  ;
+
+            double q_x=0.0; // adiabatic wall B.C.
+            double q_y=0.0; // adiabatic wall B.C.
 
             Tau = Ux + Vy;
-            Tau_xx = Mu_i * ( 2*Ux + Lambda_stokes * Tau);
-            Tau_yy = Mu_i * ( 2*Vy + Lambda_stokes * Tau);
+            Tau_xx = Mu_i * ( 2.0*Ux + Lambda_stokes * Tau);
+            Tau_yy = Mu_i * ( 2.0*Vy + Lambda_stokes * Tau);
             Tau_xy = Mu_i * ( Uy + Vx );
 
             flux_[0] = 0.0;
             flux_[1] = Tau_xx * nx + Tau_xy * ny;
             flux_[2] = Tau_xy * nx + Tau_yy * ny;
-            flux_[3] = 0.0 ;
+            flux_[3] = ( u*Tau_xx + v*Tau_xy + q_x ) * nx + ( u*Tau_xy + v*Tau_yy + q_y ) * ny ;
 
             emptyarray(2,dQf_);
         }else{
@@ -869,6 +1032,21 @@ void NS2DSolver::evaluate_sol(double &Xp, double &Yp, const int& eID, double *qq
     return;
 }
 
+void NS2DSolver::evaluate_sol_visc(double &Xp, double &Yp, const int& eID, double *qq_){
+
+    int j;
+
+    double Xc=grid_->elemlist[eID].Xc;
+    double Yc=grid_->elemlist[eID].Yc;
+
+
+    for(j=0; j<Ndof; j++){
+        qq_[j] = Qc[eID][j] + dQdx[eID][j] * (Xp-Xc) + dQdy[eID][j] * (Yp-Yc);
+    }
+
+    return;
+}
+
 void NS2DSolver::Compute_vertex_sol(const int& oiter){
 
     if(comp_vertex_iter<oiter){
@@ -877,7 +1055,7 @@ void NS2DSolver::Compute_vertex_sol(const int& oiter){
         register int i; int j,eID,iL,fID;
 
         double rho=0.0,u=0.0,v=0.0,p=0.0,p_inf=0.0,rhoV_inf=0.,V_inf=0.,rho_inf,T,E;
-        double qq_[4] ={0.,0.,0.,0.};
+        double qq_[4] ={0.,0.,0.,0.},ql[4]={0.,0.,0.,0.};
         double nx,ny;
 
         gasdata_->CalculateFlowProperties(rho_inf,u,v,p_inf,T,E);
@@ -903,12 +1081,12 @@ void NS2DSolver::Compute_vertex_sol(const int& oiter){
                     nx = grid_->facelist[fID].nx;
                     ny = grid_->facelist[fID].ny;
 
-                    evaluate_sol(grid_->Xn[i],grid_->Yn[i],iL, &qq_[0]);
+                    evaluate_sol(grid_->Xn[i],grid_->Yn[i],iL, &ql[0]);
 
                     if(grid_->facelist[fID].bnd_type==-1)
-                        compute_GhostSol_WallBC(nx,ny,&qq_[0],&qq_[0]); // becareful of debendency between ql,qr
+                        compute_GhostSol_WallBC(nx,ny,&ql[0],&qq_[0]); // becareful of debendency between ql,qr
                     else if(grid_->facelist[fID].bnd_type==-2)
-                        compute_GhostSol_farfieldBC(nx,ny,&qq_[0],&qq_[0]);
+                        compute_GhostSol_farfieldBC(nx,ny,&ql[0],&qq_[0]);
                     else
                         FatalError("Wrong face boundary condition for vertex solution");
                 }else{
@@ -919,7 +1097,7 @@ void NS2DSolver::Compute_vertex_sol(const int& oiter){
                 u = qq_[1]/qq_[0];
                 v = qq_[2]/qq_[0];
 
-                p = (gasdata_->gama-1.) * ( qq_[3] - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
+                p = (gasdata_->gama-1.0) * ( qq_[3] - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
 
                 Qv[i][0] += rho;
                 Qv[i][1] += u;
@@ -958,6 +1136,10 @@ void NS2DSolver::Compute_vertex_sol(const int& oiter){
             Qv[i][3] = 2.0* (p - p_inf)/rhoV_inf;
             Qv[i][4] = sqrt(pow(u,2)+pow(v,2)) / sqrt(gasdata_->gama * p / rho);
         }
+
+        // Updating the wall fields:
+        //---------------------------
+        update_wall_fields();
     }
 
     return;
@@ -965,20 +1147,24 @@ void NS2DSolver::Compute_vertex_sol(const int& oiter){
 
 void NS2DSolver::Compute_local_TimeStep(double *dt_cell_){
 
-    double *cell_radii=nullptr; // sum(|Vn|+c * Sf)
+    //double cell_radii=0.0; // sum(|Vn|+c * Sf)
 
-    cell_radii = new double[Nelem];
+    //cell_radii = new double[Nelem];
+
+    double *inv_radii=nullptr,*visc_radii=nullptr;
+    inv_radii = new double[Nelem];
+    visc_radii = new double[Nelem];
 
     register int i; int iL,iR;
 
     double nx,ny,Sf,Vn;
     double rho,u,v,p,E,c;
-    double gama_=gasdata_->gama;
+    double gama_=gasdata_->gama, Mu_i=gasdata_->Mu_inf, Prndtl = gasdata_->Prndtl;
     double rho_l,rho_r,Bv1,Bv2;
 
     double Ql_[4]={0.,0.,0.,0.},Qr_[4]={0.,0.,0.,0.};
 
-    for(i=0; i<Nelem; i++) cell_radii[i]=0.0;
+    for(i=0; i<Nelem; i++) { inv_radii[i]=0.0;  visc_radii[i]=0.0; }
 
     for(i=0; i<Nbndfaces; i++){
 
@@ -1016,12 +1202,13 @@ void NS2DSolver::Compute_local_TimeStep(double *dt_cell_){
 
         // Viscous contribution terms:
         rho = 0.5 * (rho_l +rho_r);
-        Bv1 = (gama_/rho), Bv2 = 4.0/ ( 3.0 * rho) ;
-        if(Bv1<Bv2) Bv1 =Bv2;
+        //Mu_i = rho * (Vn) / gasdata_->Re_no;
+        Bv1 = (gama_/rho);
+        Bv2 = 4.0/ ( 3.0 * rho) ;
+        if(Bv1<Bv2) Bv1 = Bv2;
 
-        Bv1 = Bv1 * gasdata_->Mu_inf * Sf * Sf / gasdata_->Prndtl;
-
-        cell_radii[iL] += ( ((Vn+c)*Sf*0.5) + (Bv1 / grid_->elemlist[iL].Vc ) * simdata_->visc_dt_factor);
+        inv_radii[iL]  += ((Vn+c)*Sf);
+        visc_radii[iL] +=  (Bv1 * Mu_i * Sf * Sf / Prndtl) ;
     }
 
     for(i=Nbndfaces; i<Nfaces; i++){
@@ -1062,28 +1249,143 @@ void NS2DSolver::Compute_local_TimeStep(double *dt_cell_){
         c = c/2.;
 
         // Viscous contribution terms:
-        rho_r = rho; rho = 0.5 * (rho_l +rho_r);
-        Bv1 = (gama_/rho), Bv2 = 4.0/ ( 3.0 * rho) ;
-        if(Bv1<Bv2) Bv1 =Bv2;
+        rho = 0.5 * (rho_l +rho_r);
+        //Mu_i = rho * (Vn) / gasdata_->Re_no;
+        Bv1 = (gama_/rho);
+        Bv2 = 4.0/ ( 3.0 * rho) ;
+        if(Bv1<Bv2) Bv1 = Bv2;
 
-        Bv1 = Bv1 * gasdata_->Mu_inf * Sf * Sf / gasdata_->Prndtl;
-
-        cell_radii[iL] += ( ((Vn+c)*Sf*0.5) +  (Bv1 / grid_->elemlist[iL].Vc ) * simdata_->visc_dt_factor );
-        cell_radii[iR] += ( ((Vn+c)*Sf*0.5) +  (Bv1 / grid_->elemlist[iR].Vc ) * simdata_->visc_dt_factor );
+        inv_radii[iL]  += ((Vn+c)*Sf);
+        visc_radii[iL] +=  (Bv1 * Mu_i * Sf * Sf / Prndtl) ;
+        inv_radii[iR]  += ((Vn+c)*Sf);
+        visc_radii[iR] +=  (Bv1 * Mu_i * Sf * Sf / Prndtl) ;
     }
 
     for(i=0; i<Nelem; i++) {
 
-        cell_radii[i] = cell_radii[i] / (grid_->elemlist[i].Vc);
+        visc_radii[i] = visc_radii[i] / (grid_->elemlist[i].Vc);
 
-        dt_cell_[i] = CFL_ / cell_radii[i];
+        dt_cell_[i] = CFL_ * grid_->elemlist[i].Vc /
+                ( inv_radii[i] * 0.5 + simdata_->visc_dt_factor * visc_radii[i] );
     }
 
-    emptyarray(cell_radii);
+    emptyarray(inv_radii);
+    emptyarray(visc_radii);
 
     return;
 }
 
+void NS2DSolver::compute_wall_velocity_gradients(){
+
+    register int i;
+    int iL,iR,bid,v0,v1;
+    double Xf,Yf;
+
+    double **dQf_=nullptr;
+    dQf_ = new double*[2];
+    dQf_[0] = new double[4];
+    dQf_[1] = new double[4];
+
+    double Ql[4]={0.,0.,0.,0.}, Qr[4]={0.,0.,0.,0.}, Qf[4]={0.,0.,0.,0.};
+    double u,v,rho_;
+
+    for(i=0; i<grid_->Nwallnodes; i++){
+        dudx_wall[i] = 0.0;
+        dudy_wall[i] = 0.0;
+        dvdx_wall[i] = 0.0;
+        dvdy_wall[i] = 0.0;
+    }
+
+    for(i=0; i<Nbndfaces; i++){
+        if(grid_->facelist[i].bnd_type==-1){
+
+            iL = grid_->facelist[i].Lcell;
+            iR = grid_->facelist[i].Rcell;
+            v0 = grid_->facelist[i].v0 ;
+            v1 = grid_->facelist[i].v1 ;
+            Xf = grid_->facelist[i].Xf;
+            Yf = grid_->facelist[i].Yf;
+
+            evaluate_sol_visc(Xf,Yf,iL,&Ql[0]);
+            compute_GhostSol_WallBC(0.0,0.0, &Ql[0],&Qr[0]);
+            Compute_common_facesol(&Ql[0],&Qr[0],&Qf[0]);
+            Compute_common_bound_face_gradient(i, &Qc[iL][0], &Qc[iR][0],dQf_);
+
+            u = Qf[1]/Qf[0]; v = Qf[2]/Qf[0]; rho_=Qf[0];
+
+            bid = grid_->wall_node_gid_to_bid[v0];
+            dudx_wall[bid] += ( dQf_[0][1] - ( u * dQf_[0][0] ) ) / rho_;
+            dudy_wall[bid] += ( dQf_[1][1] - ( u * dQf_[1][0] ) ) / rho_;
+            dvdx_wall[bid] += ( dQf_[0][2] - ( v * dQf_[0][0] ) ) / rho_;
+            dvdy_wall[bid] += ( dQf_[1][2] - ( v * dQf_[1][0] ) ) / rho_;
+            bid = grid_->wall_node_gid_to_bid[v1];
+            dudx_wall[bid] += ( dQf_[0][1] - ( u * dQf_[0][0] ) ) / rho_;
+            dudy_wall[bid] += ( dQf_[1][1] - ( u * dQf_[1][0] ) ) / rho_;
+            dvdx_wall[bid] += ( dQf_[0][2] - ( v * dQf_[0][0] ) ) / rho_;
+            dvdy_wall[bid] += ( dQf_[1][2] - ( v * dQf_[1][0] ) ) / rho_;
+
+        }
+    }
+
+    for(i=0; i<grid_->Nwallnodes; i++){
+        dudx_wall[i] = dudx_wall[i]/2.0;
+        dudy_wall[i] = dudy_wall[i]/2.0;
+        dvdx_wall[i] = dvdx_wall[i]/2.0;
+        dvdy_wall[i] = dvdy_wall[i]/2.0;
+    }
+
+    return;
+}
+
+void NS2DSolver::compute_wallShearStress(){
+
+    compute_wall_velocity_gradients();
+
+    register int i;
+
+    double Txx,Tyy,Txy,Tau_n0,Tau_t0, Tau_n1,Tau_t1, Tau_nn, Tau_;
+    double Mu_i = gasdata_->Mu_inf, rho_inf = gasdata_->Rho_s;
+    double V_inf = gasdata_->Mach_ / sqrt(gasdata_->gama * gasdata_->Ps / rho_inf );
+
+    for(i=0; i<grid_->Nwallnodes; i++){
+
+        Tau_ = dudx_wall[i] + dvdy_wall[i];
+        Txx = Mu_i * ( 2.0*dudx_wall[i] + Lambda_stokes * Tau_); tau_xx_wall_[i] = Txx;
+        Tyy = Mu_i * ( 2.0*dvdy_wall[i] + Lambda_stokes * Tau_); tau_yy_wall_[i] = Tyy;
+        Txy = Mu_i * ( dudy_wall[i] + dvdx_wall[i] );            tau_xy_wall_[i] = Txy;
+
+        Tau_n0 = Txx * wall_node_nx[i] + Txy * wall_node_ny[i];
+        Tau_n1 = Tyy * wall_node_ny[i] + Txy * wall_node_nx[i];
+        Tau_nn = Tau_n0 * wall_node_nx[i] + Tau_n1 * wall_node_ny[i];
+        Tau_t0 = Tau_n0 - Tau_nn * wall_node_nx[i];
+        Tau_t1 = Tau_n1 - Tau_nn * wall_node_ny[i];
+
+        tau_t_wall_[i] = sqrt( Tau_t0*Tau_t0 + Tau_t1*Tau_t1);
+        Cf_[i] = tau_t_wall_[i]/ (0.5 * rho_inf * V_inf *V_inf );
+    }
+
+    return;
+}
+
+void NS2DSolver::compute_wall_pressure_dist(){
+
+    register int i; int gid;
+
+    double rho_inf, V_inf, p_inf, u_,v_,T_,E_;
+
+    gasdata_->CalculateFlowProperties(rho_inf,u_,v_,p_inf,T_,E_);
+
+    V_inf = sqrt (u_*u_ + v_*v_);
+
+    for(i=0; i<grid_->Nwallnodes; i++){
+
+        gid = grid_->wall_nodelist[i];
+
+        p_wall_[i] = ( 0.5 * Qv[gid][3] * rho_inf* V_inf *V_inf ) + p_inf;
+    }
+
+    return;
+}
 
 
 

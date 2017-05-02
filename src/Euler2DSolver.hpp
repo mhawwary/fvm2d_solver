@@ -63,6 +63,15 @@ public:
     virtual void compute_normal_inViscidFlux(const double& nx, const double& ny
                                      , double *Q_, double *normInvflux_
                                      , double& Vn, double& c);
+    virtual void compute_wall_pressure_dist();
+
+    // Need to be changed :
+    virtual void Get_wall_stress_tensor(double* pp, double* otau_xx_
+                                        , double* otau_yy_, double* otau_xy_ ){}
+    virtual double* Get_wall_skin_friction(){return nullptr;}
+    virtual double* Get_tau_xx(){return nullptr;}
+    virtual double* Get_tau_xy(){return nullptr;}
+    virtual double* Get_tau_yy(){return nullptr;}
 
 protected:
 

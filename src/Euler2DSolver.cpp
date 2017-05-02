@@ -48,6 +48,8 @@ void Euler2DSolver::setup_solver(MeshData*& meshdata_, SimData& osimdata_
     for(i=0; i<grid_->Nnodes_postproc; i++)
         Qv[i]    = new double[Ndof+1];
 
+    p_wall_   = new double[grid_->Nwallnodes];
+
     flux_com = new double*[Nfaces];
 
     for(i=0; i<Nfaces; i++)
@@ -89,6 +91,8 @@ void Euler2DSolver::Reset_solver(){
     //FatalError("After empty Qv");
 
     emptyarray(Nfaces,flux_com);
+
+    emptyarray(p_wall_);
 
     return;
 }
@@ -854,6 +858,26 @@ void Euler2DSolver::Compute_local_TimeStep(double *dt_cell_){
     }
 
     emptyarray(cell_radii);
+
+    return;
+}
+
+void Euler2DSolver::compute_wall_pressure_dist(){
+
+    register int i; int gid;
+
+    double rho_inf, V_inf, p_inf, u_,v_,T_,E_;
+
+    gasdata_->CalculateFlowProperties(rho_inf,u_,v_,p_inf,T_,E_);
+
+    V_inf = sqrt (u_*u_ + v_*v_);
+
+    for(i=0; i<grid_->Nwallnodes; i++){
+
+        gid = grid_->wall_nodelist[i];
+
+        p_wall_[i] = ( 0.5 * Qv[gid][3] * rho_inf* V_inf *V_inf ) + p_inf;
+    }
 
     return;
 }

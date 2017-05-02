@@ -285,6 +285,10 @@ struct MeshData{
 
     int *polygon_elem_origID=nullptr;
 
+    std::map <int, int> uppwall_node_gid_to_bid;
+    std::map <int, int> lowwall_node_gid_to_bid;
+    std::map <int, int> wall_node_gid_to_bid;
+
 //    std::map <int, int> elem_gid_to_bid;  // map from global ID to bound ID
 //    std::map <int, int> elem_gid_to_intId;  // map from global ID to interior ID
 

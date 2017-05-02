@@ -26,6 +26,14 @@ public:
    virtual void UpdateSolution(double **Qn_)=0;
    virtual void Compute_local_TimeStep(double* dt_cell_)=0;
 
+   virtual void Get_wall_stress_tensor(double* pp, double* otau_xx_
+                                       , double* otau_yy_, double* otau_xy_ )=0;
+   virtual double* Get_wall_skin_friction()=0;
+
+   virtual double* Get_tau_xx()=0;
+   virtual double* Get_tau_xy()=0;
+   virtual double* Get_tau_yy()=0;
+
    double** GetNumSolution(){
        return Qc;
    }
@@ -77,6 +85,17 @@ public:
        return CFL_;
    }
 
+   void SetCFL(double oCFL){
+       CFL_=oCFL;
+
+       return;
+   }
+
+   double* Get_wall_pressure(){
+
+           return p_wall_;
+   }
+
 protected:
 
    virtual void evaluate_sol(double &Xp, double &Yp
@@ -118,6 +137,8 @@ protected:
    virtual void compute_normal_inViscidFlux(const double& nx, const double& ny
                                     , double *Q_, double *normInvflux_
                                     , double& Vn, double& c)=0;
+   virtual void compute_wall_pressure_dist()=0;
+
 
 protected:
    /* These pointers are passed to the space solver
@@ -154,6 +175,8 @@ protected:
    double **flux_com=nullptr;  // common interface flux, Nfaces long
 
    int comp_vertex_iter=0;
+
+   double *p_wall_ = nullptr;
 
 };
 
