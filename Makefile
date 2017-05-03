@@ -3,7 +3,7 @@
 
 COMP	= GCC
 TECIO	= NO
-CODE	= DEBUG
+CODE	= RELEASE
 OPENMP	= NO
 
 # Specifing Standard Variables:

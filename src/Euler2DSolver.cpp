@@ -714,7 +714,7 @@ void Euler2DSolver::Compute_vertex_sol(const int& oiter){
                 u = qq_[1]/qq_[0];
                 v = qq_[2]/qq_[0];
 
-                p = (gasdata_->gama-1.) * ( qq_[3] - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
+                p = (gasdata_->gama-1.0) * ( qq_[3] - 0.5 * rho * ( pow(u,2) + pow(v,2) ) );
 
                 Qv[i][0] += rho;
                 Qv[i][1] += u;

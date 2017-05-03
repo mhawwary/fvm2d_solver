@@ -331,16 +331,16 @@ void SimCase::dump_wall_data(const int& oiter, double** Qv
 //    sprintf(fname,"%s/surface_output/upper_wall_data_%d.dat"
 //            ,simdata.case_postproc_dir.c_str(),oiter);
 
-//    FILE*  outfile1=fopen(fname,"wt");
+//    FILE*  outfile3=fopen(fname,"wt");
 
 //    for(i=0; i<grid_data->NupperWallnodes; i++){
 //        nID = grid_data->upper_wall_nodelist[i];
 
-//        fprintf(outfile1,"%e %e %e %e %e %e %e\n",grid_data->Xn[nID] ,grid_data->Yn[nID]
+//        fprintf(outfile3,"%e %e %e %e %e %e %e\n",grid_data->Xn[nID] ,grid_data->Yn[nID]
 //                , Qv[nID][0], Qv[nID][1], Qv[nID][2], Qv[nID][3], Qv[nID][4]);
 //    }
 
-//    fclose(outfile1);
+//    fclose(outfile3);
 //    emptyarray(fname);
 
 //    fname=new char[100];
@@ -348,16 +348,16 @@ void SimCase::dump_wall_data(const int& oiter, double** Qv
 //    sprintf(fname,"%s/surface_output/lower_wall_data_%d.dat"
 //            ,simdata.case_postproc_dir.c_str(),oiter);
 
-//    FILE*  outfile=fopen(fname,"wt");
+//    FILE*  outfile1=fopen(fname,"wt");
 
 //    for(i=0; i<grid_data->NlowerWallnodes; i++){
 //        nID = grid_data->lower_wall_nodelist[i];
 
-//        fprintf(outfile,"%e %e %e %e %e %e %e\n",grid_data->Xn[nID] ,grid_data->Yn[nID]
+//        fprintf(outfile1,"%e %e %e %e %e %e %e\n",grid_data->Xn[nID] ,grid_data->Yn[nID]
 //                , Qv[nID][0], Qv[nID][1], Qv[nID][2], Qv[nID][3],  Qv[nID][4]);
 //    }
 
-//    fclose(outfile);
+//    fclose(outfile1);
 //    emptyarray(fname);
 
     // Dump Wall flow variables Cp, M,u,v,rho normalized by free stream values:
@@ -382,22 +382,24 @@ void SimCase::dump_wall_data(const int& oiter, double** Qv
 
     // Dump Wall stress data for CL and CD calculations
     //--------------------------------------------------
-    fname = new char[100];
-    sprintf(fname,"%s/surface_output/wall_stress_tensor_%d.dat"
-            ,simdata.case_postproc_dir.c_str(),oiter);
+    if(simdata.eqn_set=="NavierStokes"){
+        fname = new char[100];
+        sprintf(fname,"%s/surface_output/wall_stress_tensor_%d.dat"
+                ,simdata.case_postproc_dir.c_str(),oiter);
 
-    FILE* outfile2=fopen(fname,"wt");
+        FILE* outfile2=fopen(fname,"wt");
 
-    for(i=0; i<grid_data->Nwallnodes; i++){
+        for(i=0; i<grid_data->Nwallnodes; i++){
 
-        nID = grid_data->wall_nodelist[i];
-        fprintf(outfile2,"%e %e %e %e %e %e %e\n",grid_data->Xn[nID] ,grid_data->Yn[nID]
-                , p_wall_[i], tau_xx_wall_[i]
-                , tau_xy_wall_[i], tau_yy_wall_[i],Cf_[i]);
+            nID = grid_data->wall_nodelist[i];
+            fprintf(outfile2,"%e %e %e %e %e %e %e\n",grid_data->Xn[nID] ,grid_data->Yn[nID]
+                    , p_wall_[i], tau_xx_wall_[i]
+                    , tau_xy_wall_[i], tau_yy_wall_[i],Cf_[i]);
+        }
+
+        fclose(outfile2);
+        emptyarray(fname);
     }
-
-    fclose(outfile2);
-    emptyarray(fname);
 
     return;
 }
