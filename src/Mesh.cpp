@@ -417,7 +417,7 @@ void Mesh::compute_faceData(){
 
         grid_data_->facelist[i].Af = L;
 
-        grid_data_->facelist[i].nx =  dy/L;
+        grid_data_->facelist[i].nx =  dy/L; // CounterClockWise definition
         grid_data_->facelist[i].ny = -dx/L;
 
         grid_data_->facelist[i].Xf = 0.5*(x0+x1);
@@ -755,13 +755,13 @@ void Mesh::compute_cell_volume_center(const int &ii){
         std::cin.get();
     }
 
-    Volume = 0.5 * Volume;
+    Volume = 0.5 * Volume; // this is in 2D, in 3D->Volume =(1/3)*Volume
 
     if(Volume < 0) FatalErrorST("Negative Volume");
 
     grid_data_->elemlist[ii].Vc = Volume;
 
-    xc = xc/(3.0 * Volume);
+    xc = xc/(3.0 * Volume); // in 3D xc = xc/(4.0*Volume)
     yc = yc/(3.0 * Volume);
 
     grid_data_->elemlist[ii].Xc = xc;
