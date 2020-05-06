@@ -1,0 +1,49 @@
+[Case]
+ title = naca0012_fixed_dt
+ postprocess_dir = ./post_process/
+ mesh_file_name = ./pre_process/grid_file.in
+
+[Simulation] 
+ restart_flag = 10
+ restart_iter = 0; 
+ forces_print_freq = 500
+ fields_print_freq = 500
+ conv_hist_print_freq = 100
+ conv_criteria = 1e-20 
+
+[space_solver]
+ scheme_order=2;
+ Riemann_solver = Rusanov
+ eqn_set = Euler  # Euler / NavierStokes
+ FarField_Boundary_condition = Characteristics  # Fixed/Characteristics/Extrapolation for farfield
+ Wall_Boundary_condition = Noslip    # Slip/Noslip/Extrapolation
+ ViscousFlux = ZJWang2 # ZJWang approach / CarlGooch approach 
+ 
+[time_solver]
+ dt = 4.0e-4
+ initial_time = 0.0
+ final_time = 1e9
+ maximum_iteration = 1e10
+ CFL = 0.9
+ use_local_timeStep = 0        # 1: use local time step, 0: use fixed time step
+ visc_locat_dt_factor = 2.0
+ 
+ [./explicit]
+  RK_order = 2
+
+[Fluid]
+# in SI units
+ gamma = 1.4;
+ R_gas_constant = 287.0
+ Prandtl_no = 0.72
+ P_infinity = 101325
+ rho_infinity = 1.225
+ T_inifinity = 288.5147222 
+
+[Flow]
+ alpha = 0.0  # in degree
+ Mach = 0.5
+ Reynolds_no = 5000
+ Mu_infinity = 1.0e-4 
+ 
+ 
